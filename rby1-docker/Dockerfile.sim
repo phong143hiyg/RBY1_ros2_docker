@@ -1,0 +1,3 @@
+ARG RBY1_SIM_TAG=0.10.6-m_v1.2
+
+FROM rainbowroboticsofficial/rby1-sim:${RBY1_SIM_TAG}

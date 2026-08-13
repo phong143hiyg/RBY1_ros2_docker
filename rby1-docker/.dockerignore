@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+
+# Docker build cache và file tạm
+build
+install
+log
+.cache
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# ROS 2 workspace được tạo trên host
+rby1_ros2_ws/build
+rby1_ros2_ws/install
+rby1_ros2_ws/log
+
+# IDE
+.vscode
+.idea
+
+# File hệ thống
+.DS_Store
+Thumbs.db
+
+# File nén
+*.zip
+*.tar
+*.tar.gz

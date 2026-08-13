@@ -1,0 +1,361 @@
+#include <atomic>
+#include <chrono>
+#include <iostream>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+
+#include <boost/asio.hpp>
+#include <nlohmann/json.hpp>
+
+#include <rclcpp/rclcpp.hpp>
+#include <rby1_msgs/msg/robot_state.hpp>
+
+using json = nlohmann::json;
+using boost::asio::ip::tcp;
+
+class RBY1AppBridge : public rclcpp::Node
+{
+public:
+  RBY1AppBridge()
+  : Node("rby1_app_bridge"),
+    io_context_(),
+    acceptor_(
+      io_context_,
+      tcp::endpoint(
+        tcp::v4(),
+        8081
+      )
+    )
+  {
+    robot_state_subscriber_ =
+      create_subscription<
+        rby1_msgs::msg::RobotState
+      >(
+        "/rby1/robot_state",
+        10,
+        std::bind(
+          &RBY1AppBridge::robot_state_callback,
+          this,
+          std::placeholders::_1
+        )
+      );
+
+    tcp_thread_ = std::thread(
+      [this]()
+      {
+        tcp_server_loop();
+      }
+    );
+
+    RCLCPP_INFO(
+      get_logger(),
+      "RBY1 app bridge listening on port 8081"
+    );
+  }
+
+  ~RBY1AppBridge() override
+  {
+    stop_requested_.store(true);
+
+    boost::system::error_code error;
+    acceptor_.close(error);
+    io_context_.stop();
+
+    if (tcp_thread_.joinable())
+    {
+      tcp_thread_.join();
+    }
+  }
+
+private:
+  void robot_state_callback(
+    const rby1_msgs::msg::RobotState::SharedPtr message
+  )
+  {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+
+    connected_ = true;
+
+    control_manager_state_ =
+      static_cast<int>(
+        message->control_manager_state
+      );
+
+    stream_enabled_ =
+      static_cast<bool>(
+        message->robot_stream_state
+      );
+
+    collision_ =
+      static_cast<bool>(
+        message->collision
+      );
+
+    emergency_stop_ =
+      static_cast<bool>(
+        message->emo_state
+      );
+
+    robot_version_ =
+      static_cast<double>(
+        message->robot_version
+      );
+
+    last_state_time_ =
+      std::chrono::steady_clock::now();
+  }
+
+  bool robot_is_connected()
+  {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+
+    if (!connected_)
+    {
+      return false;
+    }
+
+    const auto elapsed =
+      std::chrono::steady_clock::now()
+      - last_state_time_;
+
+    return elapsed <
+      std::chrono::milliseconds(1500);
+  }
+
+  json create_status_response()
+  {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+
+    bool currently_connected = false;
+
+    if (connected_)
+    {
+      const auto elapsed =
+        std::chrono::steady_clock::now()
+        - last_state_time_;
+
+      currently_connected =
+        elapsed <
+        std::chrono::milliseconds(1500);
+    }
+
+    return {
+      {"success", true},
+      {"connected", currently_connected},
+      {
+        "control_manager_state",
+        control_manager_state_
+      },
+      {"stream_enabled", stream_enabled_},
+      {"collision", collision_},
+      {"emergency_stop", emergency_stop_},
+      {"robot_version", robot_version_}
+    };
+  }
+
+  json process_request(
+    const json &request
+  )
+  {
+    const std::string command =
+      request.value(
+        "command",
+        ""
+      );
+
+    if (command == "ping")
+    {
+      return {
+        {"success", true},
+        {"message", "pong"},
+        {
+          "bridge",
+          "rby1_app_bridge"
+        }
+      };
+    }
+
+    if (command == "status")
+    {
+      return create_status_response();
+    }
+
+    return {
+      {"success", false},
+      {
+        "error",
+        "Unknown command: " + command
+      }
+    };
+  }
+
+  void handle_client(
+    tcp::socket socket
+  )
+  {
+    try
+    {
+      boost::asio::streambuf buffer;
+
+      while (
+        !stop_requested_.load()
+      )
+      {
+        boost::system::error_code error;
+
+        boost::asio::read_until(
+          socket,
+          buffer,
+          '\n',
+          error
+        );
+
+        if (error)
+        {
+          break;
+        }
+
+        std::istream input(&buffer);
+
+        std::string request_text;
+        std::getline(
+          input,
+          request_text
+        );
+
+        if (request_text.empty())
+        {
+          continue;
+        }
+
+        json response;
+
+        try
+        {
+          const json request =
+            json::parse(request_text);
+
+          response =
+            process_request(request);
+        }
+        catch (
+          const std::exception &exception
+        )
+        {
+          response = {
+            {"success", false},
+            {
+              "error",
+              exception.what()
+            }
+          };
+        }
+
+        const std::string output =
+          response.dump() + "\n";
+
+        boost::asio::write(
+          socket,
+          boost::asio::buffer(output),
+          error
+        );
+
+        if (error)
+        {
+          break;
+        }
+      }
+    }
+    catch (
+      const std::exception &exception
+    )
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "TCP client error: %s",
+        exception.what()
+      );
+    }
+  }
+
+  void tcp_server_loop()
+  {
+    while (
+      !stop_requested_.load()
+    )
+    {
+      try
+      {
+        tcp::socket socket(io_context_);
+
+        acceptor_.accept(socket);
+
+        std::thread(
+          &RBY1AppBridge::handle_client,
+          this,
+          std::move(socket)
+        ).detach();
+      }
+      catch (
+        const std::exception &exception
+      )
+      {
+        if (!stop_requested_.load())
+        {
+          RCLCPP_ERROR(
+            get_logger(),
+            "TCP server error: %s",
+            exception.what()
+          );
+        }
+      }
+    }
+  }
+
+  rclcpp::Subscription<
+    rby1_msgs::msg::RobotState
+  >::SharedPtr robot_state_subscriber_;
+
+  std::mutex state_mutex_;
+
+  bool connected_{false};
+  int control_manager_state_{0};
+  bool stream_enabled_{false};
+  bool collision_{false};
+  bool emergency_stop_{false};
+  double robot_version_{0.0};
+
+  std::chrono::steady_clock::time_point
+    last_state_time_{};
+
+  boost::asio::io_context io_context_;
+  tcp::acceptor acceptor_;
+
+  std::atomic<bool>
+    stop_requested_{false};
+
+  std::thread tcp_thread_;
+};
+
+
+int main(
+  int argc,
+  char *argv[]
+)
+{
+  rclcpp::init(
+    argc,
+    argv
+  );
+
+  auto node =
+    std::make_shared<RBY1AppBridge>();
+
+  rclcpp::spin(node);
+
+  rclcpp::shutdown();
+
+  return 0;
+}

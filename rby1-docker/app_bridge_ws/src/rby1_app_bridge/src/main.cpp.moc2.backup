@@ -1,0 +1,762 @@
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cmath>
+#include <iostream>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+
+#include <boost/asio.hpp>
+#include <nlohmann/json.hpp>
+
+#include <geometry_msgs/msg/twist.hpp>
+#include <rby1_msgs/msg/robot_state.hpp>
+#include <rclcpp/rclcpp.hpp>
+
+using json = nlohmann::json;
+using boost::asio::ip::tcp;
+
+using namespace std::chrono_literals;
+
+
+class RBY1AppBridge : public rclcpp::Node
+{
+public:
+  RBY1AppBridge()
+  : Node("rby1_app_bridge"),
+    io_context_(),
+    acceptor_(
+      io_context_,
+      tcp::endpoint(
+        tcp::v4(),
+        TCP_PORT
+      )
+    )
+  {
+    // ======================================================
+    // Publisher điều khiển đế
+    // ======================================================
+
+    cmd_vel_publisher_ =
+      create_publisher<geometry_msgs::msg::Twist>(
+        "/rby1/cmd_vel",
+        10
+      );
+
+    // ======================================================
+    // Subscriber đọc trạng thái robot
+    // ======================================================
+
+    robot_state_subscriber_ =
+      create_subscription<
+        rby1_msgs::msg::RobotState
+      >(
+        "/rby1/robot_state",
+        10,
+        std::bind(
+          &RBY1AppBridge::robot_state_callback,
+          this,
+          std::placeholders::_1
+        )
+      );
+
+    // ======================================================
+    // Timer publish cmd_vel và watchdog
+    // ======================================================
+
+    velocity_timer_ =
+      create_wall_timer(
+        50ms,
+        std::bind(
+          &RBY1AppBridge::velocity_watchdog,
+          this
+        )
+      );
+
+    // ======================================================
+    // TCP server dành cho ứng dụng C#
+    // ======================================================
+
+    tcp_thread_ =
+      std::thread(
+        [this]()
+        {
+          tcp_server_loop();
+        }
+      );
+
+    RCLCPP_INFO(
+      get_logger(),
+      "RBY1 app bridge listening on port %d",
+      TCP_PORT
+    );
+  }
+
+  ~RBY1AppBridge() override
+  {
+    stop_requested_.store(true);
+
+    stop_robot();
+
+    boost::system::error_code error;
+
+    acceptor_.close(error);
+    io_context_.stop();
+
+    if (tcp_thread_.joinable())
+    {
+      tcp_thread_.join();
+    }
+  }
+
+private:
+  // ========================================================
+  // Cấu hình
+  // ========================================================
+
+  static constexpr int TCP_PORT = 8081;
+
+  static constexpr double MAX_LINEAR_SPEED =
+    0.20;
+
+  static constexpr double MAX_ANGULAR_SPEED =
+    0.50;
+
+  static constexpr auto ROBOT_STATE_TIMEOUT =
+    std::chrono::milliseconds(1500);
+
+  static constexpr auto VELOCITY_COMMAND_TIMEOUT =
+    std::chrono::milliseconds(350);
+
+  // ========================================================
+  // Robot state
+  // ========================================================
+
+  void robot_state_callback(
+    const rby1_msgs::msg::RobotState::SharedPtr message
+  )
+  {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+
+    received_robot_state_ = true;
+
+    control_manager_state_ =
+      static_cast<int>(
+        message->control_manager_state
+      );
+
+    stream_enabled_ =
+      static_cast<bool>(
+        message->robot_stream_state
+      );
+
+    collision_ =
+      static_cast<bool>(
+        message->collision
+      );
+
+    emergency_stop_ =
+      static_cast<bool>(
+        message->emo_state
+      );
+
+    robot_version_ =
+      static_cast<double>(
+        message->robot_version
+      );
+
+    last_robot_state_time_ =
+      std::chrono::steady_clock::now();
+  }
+
+  bool robot_is_connected_unlocked() const
+  {
+    if (!received_robot_state_)
+    {
+      return false;
+    }
+
+    const auto elapsed =
+      std::chrono::steady_clock::now()
+      - last_robot_state_time_;
+
+    return elapsed < ROBOT_STATE_TIMEOUT;
+  }
+
+  bool robot_is_ready_unlocked() const
+  {
+    return
+      control_manager_state_
+        == rby1_msgs::msg::RobotState::STATE_ENABLE
+      ||
+      control_manager_state_
+        == rby1_msgs::msg::RobotState::STATE_EXECUTING;
+  }
+
+  // ========================================================
+  // Điều khiển vận tốc
+  // ========================================================
+
+  json set_velocity_command(
+    double linear_x,
+    double linear_y,
+    double angular_z
+  )
+  {
+    if (
+      !std::isfinite(linear_x)
+      ||
+      !std::isfinite(linear_y)
+      ||
+      !std::isfinite(angular_z)
+    )
+    {
+      return {
+        {"success", false},
+        {"error", "Velocity contains invalid values"}
+      };
+    }
+
+    linear_x =
+      std::clamp(
+        linear_x,
+        -MAX_LINEAR_SPEED,
+        MAX_LINEAR_SPEED
+      );
+
+    linear_y =
+      std::clamp(
+        linear_y,
+        -MAX_LINEAR_SPEED,
+        MAX_LINEAR_SPEED
+      );
+
+    angular_z =
+      std::clamp(
+        angular_z,
+        -MAX_ANGULAR_SPEED,
+        MAX_ANGULAR_SPEED
+      );
+
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+
+      if (!robot_is_connected_unlocked())
+      {
+        return {
+          {"success", false},
+          {
+            "error",
+            "Robot state is not connected"
+          }
+        };
+      }
+
+      if (!robot_is_ready_unlocked())
+      {
+        return {
+          {"success", false},
+          {
+            "error",
+            "Robot is not ENABLE or EXECUTING"
+          }
+        };
+      }
+
+      if (!stream_enabled_)
+      {
+        return {
+          {"success", false},
+          {
+            "error",
+            "Stream control is OFF"
+          }
+        };
+      }
+
+      if (collision_)
+      {
+        return {
+          {"success", false},
+          {
+            "error",
+            "Robot collision is active"
+          }
+        };
+      }
+
+      if (emergency_stop_)
+      {
+        return {
+          {"success", false},
+          {
+            "error",
+            "Emergency stop is active"
+          }
+        };
+      }
+
+      desired_linear_x_ = linear_x;
+      desired_linear_y_ = linear_y;
+      desired_angular_z_ = angular_z;
+
+      velocity_command_active_ = true;
+
+      last_velocity_command_time_ =
+        std::chrono::steady_clock::now();
+    }
+
+    publish_velocity(
+      linear_x,
+      linear_y,
+      angular_z
+    );
+
+    return {
+      {"success", true},
+
+      {
+        "velocity",
+        {
+          {"linear_x", linear_x},
+          {"linear_y", linear_y},
+          {"angular_z", angular_z}
+        }
+      }
+    };
+  }
+
+  void stop_robot()
+  {
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+
+      desired_linear_x_ = 0.0;
+      desired_linear_y_ = 0.0;
+      desired_angular_z_ = 0.0;
+
+      velocity_command_active_ = false;
+    }
+
+    // Gửi nhiều lệnh zero để tăng độ chắc chắn.
+    for (int index = 0; index < 3; ++index)
+    {
+      publish_velocity(
+        0.0,
+        0.0,
+        0.0
+      );
+    }
+  }
+
+  void velocity_watchdog()
+  {
+    double linear_x = 0.0;
+    double linear_y = 0.0;
+    double angular_z = 0.0;
+
+    bool command_is_valid = false;
+
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+
+      if (velocity_command_active_)
+      {
+        const auto elapsed =
+          std::chrono::steady_clock::now()
+          - last_velocity_command_time_;
+
+        command_is_valid =
+          elapsed <= VELOCITY_COMMAND_TIMEOUT
+          &&
+          robot_is_connected_unlocked()
+          &&
+          robot_is_ready_unlocked()
+          &&
+          stream_enabled_
+          &&
+          !collision_
+          &&
+          !emergency_stop_;
+      }
+
+      if (command_is_valid)
+      {
+        linear_x = desired_linear_x_;
+        linear_y = desired_linear_y_;
+        angular_z = desired_angular_z_;
+      }
+      else
+      {
+        desired_linear_x_ = 0.0;
+        desired_linear_y_ = 0.0;
+        desired_angular_z_ = 0.0;
+
+        velocity_command_active_ = false;
+      }
+    }
+
+    publish_velocity(
+      linear_x,
+      linear_y,
+      angular_z
+    );
+  }
+
+  void publish_velocity(
+    double linear_x,
+    double linear_y,
+    double angular_z
+  )
+  {
+    geometry_msgs::msg::Twist message;
+
+    message.linear.x = linear_x;
+    message.linear.y = linear_y;
+    message.angular.z = angular_z;
+
+    cmd_vel_publisher_->publish(message);
+  }
+
+  // ========================================================
+  // JSON responses
+  // ========================================================
+
+  json create_status_response()
+  {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+
+    const bool connected =
+      robot_is_connected_unlocked();
+
+    const bool ready =
+      robot_is_ready_unlocked();
+
+    return {
+      {"success", true},
+      {"connected", connected},
+      {"ready", ready},
+
+      {
+        "control_manager_state",
+        control_manager_state_
+      },
+
+      {"stream_enabled", stream_enabled_},
+      {"collision", collision_},
+      {"emergency_stop", emergency_stop_},
+      {"robot_version", robot_version_},
+
+      {
+        "velocity",
+        {
+          {
+            "linear_x",
+            desired_linear_x_
+          },
+
+          {
+            "linear_y",
+            desired_linear_y_
+          },
+
+          {
+            "angular_z",
+            desired_angular_z_
+          },
+
+          {
+            "active",
+            velocity_command_active_
+          }
+        }
+      }
+    };
+  }
+
+  json process_request(
+    const json &request
+  )
+  {
+    const std::string command =
+      request.value(
+        "command",
+        ""
+      );
+
+    if (command == "ping")
+    {
+      return {
+        {"success", true},
+        {"message", "pong"},
+        {"bridge", "rby1_app_bridge"}
+      };
+    }
+
+    if (command == "status")
+    {
+      return create_status_response();
+    }
+
+    if (command == "velocity")
+    {
+      const double linear_x =
+        request.value(
+          "linear_x",
+          0.0
+        );
+
+      const double linear_y =
+        request.value(
+          "linear_y",
+          0.0
+        );
+
+      const double angular_z =
+        request.value(
+          "angular_z",
+          0.0
+        );
+
+      return set_velocity_command(
+        linear_x,
+        linear_y,
+        angular_z
+      );
+    }
+
+    if (command == "stop")
+    {
+      stop_robot();
+
+      return {
+        {"success", true},
+        {"message", "Robot base stopped"}
+      };
+    }
+
+    return {
+      {"success", false},
+      {
+        "error",
+        "Unknown command: " + command
+      }
+    };
+  }
+
+  // ========================================================
+  // TCP server
+  // ========================================================
+
+  void handle_client(
+    tcp::socket socket
+  )
+  {
+    RCLCPP_INFO(
+      get_logger(),
+      "Desktop application connected"
+    );
+
+    try
+    {
+      socket.set_option(
+        tcp::no_delay(true)
+      );
+
+      boost::asio::streambuf buffer;
+
+      while (!stop_requested_.load())
+      {
+        boost::system::error_code error;
+
+        boost::asio::read_until(
+          socket,
+          buffer,
+          '\n',
+          error
+        );
+
+        if (error)
+        {
+          break;
+        }
+
+        std::istream input(&buffer);
+
+        std::string request_text;
+
+        std::getline(
+          input,
+          request_text
+        );
+
+        if (request_text.empty())
+        {
+          continue;
+        }
+
+        json response;
+
+        try
+        {
+          const json request =
+            json::parse(request_text);
+
+          response =
+            process_request(request);
+        }
+        catch (
+          const std::exception &exception
+        )
+        {
+          response = {
+            {"success", false},
+            {"error", exception.what()}
+          };
+        }
+
+        const std::string response_text =
+          response.dump() + "\n";
+
+        boost::asio::write(
+          socket,
+          boost::asio::buffer(
+            response_text
+          ),
+          error
+        );
+
+        if (error)
+        {
+          break;
+        }
+      }
+    }
+    catch (
+      const std::exception &exception
+    )
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "TCP client error: %s",
+        exception.what()
+      );
+    }
+
+    // Ứng dụng bị đóng hoặc mất kết nối thì dừng robot.
+    stop_robot();
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Desktop application disconnected"
+    );
+  }
+
+  void tcp_server_loop()
+  {
+    while (!stop_requested_.load())
+    {
+      try
+      {
+        tcp::socket socket(io_context_);
+
+        acceptor_.accept(socket);
+
+        // Chỉ cho một ứng dụng điều khiển tại một thời điểm.
+        handle_client(
+          std::move(socket)
+        );
+      }
+      catch (
+        const std::exception &exception
+      )
+      {
+        if (!stop_requested_.load())
+        {
+          RCLCPP_ERROR(
+            get_logger(),
+            "TCP server error: %s",
+            exception.what()
+          );
+        }
+      }
+    }
+  }
+
+  // ========================================================
+  // ROS objects
+  // ========================================================
+
+  rclcpp::Publisher<
+    geometry_msgs::msg::Twist
+  >::SharedPtr cmd_vel_publisher_;
+
+  rclcpp::Subscription<
+    rby1_msgs::msg::RobotState
+  >::SharedPtr robot_state_subscriber_;
+
+  rclcpp::TimerBase::SharedPtr
+    velocity_timer_;
+
+  // ========================================================
+  // Shared state
+  // ========================================================
+
+  std::mutex state_mutex_;
+
+  bool received_robot_state_{false};
+
+  int control_manager_state_{0};
+
+  bool stream_enabled_{false};
+  bool collision_{false};
+  bool emergency_stop_{false};
+
+  double robot_version_{0.0};
+
+  std::chrono::steady_clock::time_point
+    last_robot_state_time_{};
+
+  double desired_linear_x_{0.0};
+  double desired_linear_y_{0.0};
+  double desired_angular_z_{0.0};
+
+  bool velocity_command_active_{false};
+
+  std::chrono::steady_clock::time_point
+    last_velocity_command_time_{};
+
+  // ========================================================
+  // TCP objects
+  // ========================================================
+
+  boost::asio::io_context io_context_;
+  tcp::acceptor acceptor_;
+
+  std::atomic<bool> stop_requested_{false};
+
+  std::thread tcp_thread_;
+};
+
+
+int main(
+  int argc,
+  char *argv[]
+)
+{
+  rclcpp::init(
+    argc,
+    argv
+  );
+
+  auto node =
+    std::make_shared<RBY1AppBridge>();
+
+  rclcpp::spin(node);
+
+  rclcpp::shutdown();
+
+  return 0;
+}

@@ -1,0 +1,372 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #111827;
+  background: #f3f4f6;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #f3f4f6;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #9ca3af;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 9px;
+  padding: 11px 16px;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+  transition: background 120ms ease, transform 120ms ease, opacity 120ms ease;
+}
+
+button:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+button:active:not(:disabled),
+button.active {
+  transform: translateY(1px);
+  background: #dbeafe;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+button.primary {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+button.primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+button.warning {
+  background: #f59e0b;
+  border-color: #f59e0b;
+}
+
+button.warning:hover:not(:disabled) {
+  background: #d97706;
+}
+
+button.danger {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  font-weight: 800;
+}
+
+button.danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.container {
+  width: min(1180px, 94%);
+  margin: 0 auto;
+  padding: 28px 0 48px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.page-header h1 {
+  margin: 0 0 4px;
+  font-size: clamp(28px, 4vw, 42px);
+}
+
+.page-header p,
+.section-heading p {
+  margin: 0;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.badge {
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.badge.online {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge.offline {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.panel {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 5%);
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.section-heading h2 {
+  margin: 0 0 5px;
+  font-size: 26px;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.status-card {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 92px;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 4%);
+}
+
+.status-card span {
+  display: block;
+  color: #6b7280;
+  font-size: 14px;
+  margin-bottom: 9px;
+}
+
+.status-card strong {
+  display: block;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.sliders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.slider-field {
+  display: grid;
+  gap: 10px;
+}
+
+.slider-field input {
+  width: 100%;
+}
+
+.control-grid {
+  width: min(470px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.control-grid button {
+  min-height: 76px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.joint-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.joint-toolbar label {
+  display: grid;
+  grid-template-columns: auto 90px auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.joint-toolbar input {
+  width: 90px;
+  padding: 9px;
+  border: 1px solid #9ca3af;
+  border-radius: 8px;
+}
+
+.joint-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.joint-group {
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 14px;
+  background: #fafafa;
+}
+
+.joint-group h3 {
+  margin: 0 0 13px;
+  font-size: 20px;
+}
+
+.joint-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) 44px 110px 44px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.joint-row:last-child {
+  margin-bottom: 0;
+}
+
+.joint-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joint-row button {
+  padding: 8px;
+  min-width: 42px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.joint-row strong {
+  text-align: center;
+  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  font-size: 14px;
+}
+
+.empty-message {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed #9ca3af;
+  border-radius: 10px;
+  color: #6b7280;
+  text-align: center;
+}
+
+#logOutput {
+  min-height: 150px;
+  max-height: 320px;
+  overflow: auto;
+  margin: 0;
+  background: #111827;
+  color: #e5e7eb;
+  padding: 14px;
+  border-radius: 9px;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .page-header,
+  .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .joint-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .joint-toolbar label {
+    grid-template-columns: 1fr 90px auto;
+  }
+
+  .joint-toolbar button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 460px) {
+  .container {
+    width: min(96%, 1180px);
+  }
+
+  .panel {
+    padding: 15px;
+  }
+
+  .control-grid button {
+    min-height: 62px;
+    font-size: 17px;
+  }
+
+  .joint-row {
+    grid-template-columns: minmax(82px, 1fr) 40px 92px 40px;
+    gap: 6px;
+  }
+
+  .joint-row strong {
+    font-size: 12px;
+  }
+}
+
+.empty-message strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #374151;
+}
+
+.empty-message p {
+  margin: 0 0 10px;
+}
+
+.empty-message details {
+  text-align: left;
+}
+
+.empty-message code {
+  display: block;
+  max-height: 180px;
+  overflow: auto;
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #111827;
+  color: #e5e7eb;
+  white-space: pre-wrap;
+}

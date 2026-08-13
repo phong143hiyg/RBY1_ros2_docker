@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RBY1 Local Controller</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container">
+    <header class="page-header">
+      <div>
+        <h1>RBY1 Local Controller</h1>
+        <p>Điều khiển RB-Y1 qua ROS 2</p>
+      </div>
+      <div id="connectionBadge" class="badge offline">ROS 2: Mất kết nối</div>
+    </header>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <h2>Khởi động và an toàn</h2>
+          <p>Chuẩn bị robot trước khi gửi lệnh. “Hủy toàn bộ” sẽ đóng stream; sau đó cần bật lại stream hoặc chuẩn bị robot lại.</p>
+        </div>
+      </div>
+      <div class="button-row">
+        <button id="prepareButton" class="primary" type="button">Chuẩn bị robot</button>
+        <button id="streamOnButton" type="button">Bật stream</button>
+        <button id="streamOffButton" type="button">Tắt stream</button>
+        <button id="cancelButton" class="warning" type="button">Hủy toàn bộ</button>
+        <button id="emergencyStopButton" class="danger" type="button">DỪNG ĐẾ</button>
+      </div>
+    </section>
+
+    <section class="status-grid">
+      <article class="status-card"><span>Control Manager</span><strong id="controlState">NONE</strong></article>
+      <article class="status-card"><span>Stream</span><strong id="streamState">OFF</strong></article>
+      <article class="status-card"><span>Collision</span><strong id="collisionState">Không</strong></article>
+      <article class="status-card"><span>Số khớp</span><strong id="jointCount">0</strong></article>
+      <article class="status-card"><span>Trạng thái lệnh khớp</span><strong id="jointActionState">idle</strong></article>
+      <article class="status-card"><span>Odom X</span><strong id="odomX">0.000 m</strong></article>
+      <article class="status-card"><span>Odom Y</span><strong id="odomY">0.000 m</strong></article>
+      <article class="status-card"><span>Hướng quay</span><strong id="odomYaw">0.000 rad</strong></article>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <h2>Điều khiển đế</h2>
+          <p>Giữ nút hoặc dùng bàn phím W A S D Q E. Nhấn Space để dừng.</p>
+        </div>
+      </div>
+
+      <div class="sliders">
+        <label class="slider-field">
+          <span>Tốc độ tịnh tiến: <strong id="linearSpeedText">0.10 m/s</strong></span>
+          <input id="linearSpeed" type="range" min="0.02" max="0.20" step="0.01" value="0.10">
+        </label>
+
+        <label class="slider-field">
+          <span>Tốc độ quay: <strong id="angularSpeedText">0.25 rad/s</strong></span>
+          <input id="angularSpeed" type="range" min="0.05" max="0.50" step="0.05" value="0.25">
+        </label>
+      </div>
+
+      <div class="control-grid" aria-label="Điều khiển đế">
+        <button class="motion-button" data-key="KeyQ" type="button">↶ Q</button>
+        <button class="motion-button" data-key="KeyW" type="button">↑ W</button>
+        <button class="motion-button" data-key="KeyE" type="button">E ↷</button>
+        <button class="motion-button" data-key="KeyA" type="button">← A</button>
+        <button id="centerStopButton" class="danger" type="button">STOP</button>
+        <button class="motion-button" data-key="KeyD" type="button">D →</button>
+        <div></div>
+        <button class="motion-button" data-key="KeyS" type="button">↓ S</button>
+        <div></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <h2>Điều khiển tay, thân và đầu</h2>
+          <p>Mỗi lần nhấn sẽ tăng hoặc giảm một góc nhỏ từ vị trí hiện tại của khớp.</p>
+        </div>
+      </div>
+
+      <div class="joint-toolbar">
+        <label>
+          <span>Bước thay đổi</span>
+          <input id="jointStep" type="number" min="0.02" max="0.20" step="0.01" value="0.10">
+          <span>rad</span>
+        </label>
+
+        <label>
+          <span>Thời gian chuyển động</span>
+          <input id="jointMinimumTime" type="number" min="0.50" max="5.00" step="0.10" value="1.20">
+          <span>giây</span>
+        </label>
+
+        <button id="readyPoseButton" class="primary" type="button">Tư thế co tay</button>
+        <button id="zeroPoseButton" class="warning" type="button">Về tư thế 0</button>
+      </div>
+
+      <div id="jointGroups" class="joint-groups">
+        <div id="jointWaitingMessage" class="empty-message">
+          <strong>Đang chờ tách dữ liệu khớp...</strong>
+          <p>Backend sẽ tự đọc tên trong /rby1/joint_states và tạo các nhóm tay, thân và đầu.</p>
+          <details id="jointDiagnostics" hidden>
+            <summary>Tên khớp ROS 2 đã nhận</summary>
+            <code id="jointNameList"></code>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <h2>Nhật ký</h2>
+          <p>Hiển thị thao tác điều khiển và lỗi từ backend.</p>
+        </div>
+        <button id="clearLogButton" type="button">Xóa nhật ký</button>
+      </div>
+      <pre id="logOutput"></pre>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

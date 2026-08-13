@@ -1,0 +1,157 @@
+# ============================================================
+# Image ROS 2 Humble có sẵn RViz
+# ============================================================
+FROM osrf/ros:humble-desktop
+
+SHELL ["/bin/bash", "-c"]
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Đường dẫn chứa SDK và ROS 2 workspace trong container
+ENV RBY1_SDK_PATH=/opt/rby1-sdk
+ENV RBY1_ROS2_WS=/opt/rby1_ros2_ws
+
+# Hỗ trợ RViz và các ứng dụng Qt chạy qua X11
+ENV QT_X11_NO_MITSHM=1
+
+# Giúp chương trình tìm thấy thư viện librby1-sdk.so lúc chạy
+ENV LD_LIBRARY_PATH=/opt/rby1-sdk/build/src:${LD_LIBRARY_PATH}
+
+# ============================================================
+# 1. Cài công cụ build và dependency cơ bản
+# ============================================================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    git \
+    cmake \
+    make \
+    ninja-build \
+    pkg-config \
+    python3-pip \
+    python3-rosdep \
+    python3-colcon-common-extensions \
+    python3-vcstool \
+    libeigen3-dev \
+    libgl1 \
+    libgl1-mesa-dri \
+    libglu1-mesa \
+    mesa-utils \
+    ros-humble-moveit \
+    ros-humble-moveit-visual-tools \
+    ros-humble-interactive-markers \
+    ros-humble-ros2-control \
+    ros-humble-ros2-controllers \
+    ros-humble-gripper-controllers \
+    ros-humble-joint-trajectory-controller \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============================================================
+# 2. Cài Conan để build dependency của rby1-sdk
+# ============================================================
+RUN python3 -m pip install --no-cache-dir "conan>=2.0,<3.0"
+
+# ============================================================
+# 3. Clone rby1-sdk
+#
+# v0.10.0 là release 0.10.x chính thức.
+# Có thể thay bằng main nếu muốn lấy code mới nhất.
+# ============================================================
+ARG RBY1_SDK_REF=v0.10.0
+
+RUN git clone \
+    --branch "${RBY1_SDK_REF}" \
+    --depth 1 \
+    --recurse-submodules \
+    --shallow-submodules \
+    https://github.com/RainbowRobotics/rby1-sdk.git \
+    "${RBY1_SDK_PATH}"
+
+WORKDIR ${RBY1_SDK_PATH}
+
+# ============================================================
+# 4. Tạo Conan profile và cài dependency SDK
+# ============================================================
+RUN conan profile detect --force && \
+    conan install . \
+        -s build_type=Release \
+        -b missing \
+        -of build
+
+# ============================================================
+# 5. Configure và build rby1-sdk
+#
+# Không được xóa thư mục build sau bước này.
+# rby1-ros2 liên kết trực tiếp tới:
+# /opt/rby1-sdk/build/src
+# ============================================================
+RUN cmake \
+        -S . \
+        -B build \
+        -G "Unix Makefiles" \
+        -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake \
+        -DCMAKE_POLICY_DEFAULT_CMP0091=NEW \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_EXAMPLES=OFF && \
+    cmake --build build --parallel "$(nproc)" && \
+    cmake --build build --target install --parallel "$(nproc)"
+
+# ============================================================
+# 6. Clone rby1-ros2 vào workspace
+# ============================================================
+ARG RBY1_ROS2_REF=main
+
+RUN mkdir -p "${RBY1_ROS2_WS}/src" && \
+    git clone \
+        --branch "${RBY1_ROS2_REF}" \
+        --depth 1 \
+        https://github.com/RainbowRobotics/rby1-ros2.git \
+        "${RBY1_ROS2_WS}/src/rby1-ros2"
+
+# ============================================================
+# 7. Khởi tạo rosdep
+# ============================================================
+RUN rosdep init 2>/dev/null || true && \
+    rosdep update --rosdistro humble
+
+# ============================================================
+# 8. Cài các dependency ghi trong package.xml
+# ============================================================
+RUN apt-get update && \
+    source /opt/ros/humble/setup.bash && \
+    cd "${RBY1_ROS2_WS}" && \
+    rosdep install \
+        --from-paths src \
+        --ignore-src \
+        --rosdistro humble \
+        --skip-keys="warehouse_ros_mongo" \
+        -y && \
+    rm -rf /var/lib/apt/lists/*
+
+# ============================================================
+# 9. Build rby1-ros2
+# ============================================================
+WORKDIR ${RBY1_ROS2_WS}
+
+RUN source /opt/ros/humble/setup.bash && \
+    colcon build \
+        --symlink-install \
+        --cmake-args \
+        -DCMAKE_BUILD_TYPE=Release
+
+        # ============================================================
+# Web backend dùng để điều khiển robot từ trình duyệt
+# ============================================================
+RUN python3 -m pip install --no-cache-dir \
+    fastapi \
+    "uvicorn[standard]"
+# ============================================================
+# 10. Thêm entrypoint
+# ============================================================
+COPY ros_entrypoint.sh /ros_entrypoint.sh
+
+RUN chmod +x /ros_entrypoint.sh
+
+ENTRYPOINT ["/ros_entrypoint.sh"]
+
+CMD ["bash"]

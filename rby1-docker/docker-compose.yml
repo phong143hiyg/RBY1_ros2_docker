@@ -1,0 +1,105 @@
+services:
+  # ==========================================================
+  # MuJoCo simulator
+  # ==========================================================
+  rby1-sim:
+    image: local/rby1-sim:0.10.6-m_v1.2
+    container_name: rby1-sim
+
+    network_mode: host
+
+    environment:
+      DISPLAY: ${DISPLAY}
+      QT_X11_NO_MITSHM: "1"
+
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+
+    restart: unless-stopped
+
+  # ==========================================================
+  # ROS 2 Driver
+  # ==========================================================
+  rby1-ros2:
+    image: local/rby1-ros2:humble
+    container_name: rby1-ros2
+
+    network_mode: host
+    ipc: host
+    environment:
+      DISPLAY: ${DISPLAY}
+      QT_X11_NO_MITSHM: "1"
+      RBY1_SDK_PATH: /opt/rby1-sdk
+
+      ROS_DOMAIN_ID: "0"
+      ROS_LOCALHOST_ONLY: "0"
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+
+    stdin_open: true
+    tty: true
+
+    command:
+      - ros2
+      - launch
+      - rby1_driver
+      - rby1_ros2_driver.launch.py
+
+    depends_on:
+      - rby1-sim
+
+    restart: unless-stopped
+
+  # ==========================================================
+  # Local Web Controller
+  # ==========================================================
+  rby1-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+
+    image: local/rby1-web:latest
+    container_name: rby1-web
+
+    network_mode: host
+    ipc: host
+
+    environment:
+      ROS_DOMAIN_ID: "0"
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+      ROS_LOCALHOST_ONLY: "0"
+
+    volumes:
+      - ./web_control:/workspace/web_control:ro
+
+    command:
+      - python3
+      - /workspace/web_control/server.py
+
+    depends_on:
+      - rby1-ros2
+
+    restart: unless-stopped
+  rby1-app-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile.app-bridge
+
+    image: local/rby1-app-bridge:humble
+
+    container_name: rby1-app-bridge
+
+    network_mode: host
+    ipc: host
+
+    environment:
+      ROS_DOMAIN_ID: 0
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+      ROS_LOCALHOST_ONLY: 0
+
+    depends_on:
+      - rby1-ros2
+
+    restart: unless-stopped

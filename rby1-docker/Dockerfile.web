@@ -1,0 +1,12 @@
+FROM local/rby1-ros2:humble
+
+SHELL ["/bin/bash", "-c"]
+
+# Cài backend web và hỗ trợ WebSocket
+RUN python3 -m pip install --no-cache-dir \
+    fastapi \
+    "uvicorn[standard]"
+
+WORKDIR /workspace/web_control
+
+CMD ["python3", "/workspace/web_control/server.py"]
