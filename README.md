@@ -11,7 +11,9 @@ Bộ môi trường Docker để mô phỏng và điều khiển robot **Rainbow
 | `rby1-sim` | Mô phỏng RB-Y1 bằng MuJoCo | Giao diện X11, host network |
 | `rby1-ros2` | SDK và ROS 2 driver chính thức của RB-Y1 | ROS 2 domain `0` |
 | `rby1-web` | Backend FastAPI và giao diện web điều khiển | HTTP `8000` |
-| `rby1-app-bridge` | Cầu nối ROS 2 cho ứng dụng desktop | TCP `8081` |
+| `rby1-app-bridge` | Cầu nối ROS 2 cho [ứng dụng desktop Qt](https://github.com/phong143hiyg/RBY1_Qt_Application_Controller) | TCP `8081` |
+
+Mã nguồn ứng dụng điều khiển desktop được phát triển ở repository riêng: [RBY1 Qt Application Controller](https://github.com/phong143hiyg/RBY1_Qt_Application_Controller). Repository hiện tại cung cấp `rby1-app-bridge` để ứng dụng Qt giao tiếp với ROS 2 qua TCP.
 
 Giao diện web hỗ trợ:
 
