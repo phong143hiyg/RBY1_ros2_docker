@@ -25,6 +25,10 @@
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
+#include "rby1_app_bridge/component_state.hpp"
+#include "rby1_app_bridge/ready_pose_state.hpp"
+#include "rby1_app_bridge/status_state.hpp"
+
 using json = nlohmann::json;
 using boost::asio::ip::tcp;
 using namespace std::chrono_literals;
@@ -226,6 +230,15 @@ private:
   {
     std::lock_guard<std::mutex> lock(state_mutex_);
 
+    const bool connection_was_stale =
+      received_robot_state_
+      && !robot_is_connected_unlocked();
+
+    if (connection_was_stale)
+    {
+      component_state_.reset();
+    }
+
     received_robot_state_ = true;
 
     control_manager_state_ =
@@ -235,6 +248,9 @@ private:
     stream_enabled_ =
       static_cast<bool>(
         message->robot_stream_state);
+
+    component_state_.confirm_stream(
+      stream_enabled_);
 
     collision_ =
       static_cast<bool>(
@@ -540,6 +556,44 @@ private:
         == rby1_msgs::msg::RobotState::STATE_EXECUTING;
   }
 
+  bool control_manager_has_fault_unlocked() const
+  {
+    return
+      control_manager_state_
+        == rby1_msgs::msg::RobotState::STATE_MAJOR_FAULT
+      || control_manager_state_
+        == rby1_msgs::msg::RobotState::STATE_MINOR_FAULT;
+  }
+
+  std::string control_manager_fault_message_unlocked() const
+  {
+    if (
+      control_manager_state_
+      == rby1_msgs::msg::RobotState::STATE_MAJOR_FAULT)
+    {
+      return "Control Manager major fault";
+    }
+
+    if (
+      control_manager_state_
+      == rby1_msgs::msg::RobotState::STATE_MINOR_FAULT)
+    {
+      return "Control Manager minor fault";
+    }
+
+    if (collision_)
+    {
+      return "Robot collision is active";
+    }
+
+    if (emergency_stop_)
+    {
+      return "Emergency stop is active";
+    }
+
+    return "";
+  }
+
   json set_velocity_command(
     double linear_x,
     double linear_y,
@@ -641,17 +695,7 @@ private:
       linear_y,
       angular_z);
 
-    return {
-      {"success", true},
-      {
-        "velocity",
-        {
-          {"linear_x", linear_x},
-          {"linear_y", linear_y},
-          {"angular_z", angular_z}
-        }
-      }
-    };
+    return {{"success", true}};
   }
 
   void stop_robot()
@@ -691,6 +735,14 @@ private:
       std::lock_guard<std::mutex> lock(
         state_mutex_);
 
+      const bool connected =
+        robot_is_connected_unlocked();
+
+      if (!connected)
+      {
+        component_state_.reset();
+      }
+
       if (velocity_command_active_)
       {
         const auto elapsed =
@@ -700,7 +752,7 @@ private:
         command_is_valid =
           elapsed
             <= VELOCITY_COMMAND_TIMEOUT
-          && robot_is_connected_unlocked()
+          && connected
           && robot_is_ready_unlocked()
           && stream_enabled_
           && !joint_action_busy_
@@ -739,7 +791,19 @@ private:
 
     message.linear.x = linear_x;
     message.linear.y = linear_y;
+    message.linear.z = 0.0;
+    message.angular.x = 0.0;
+    message.angular.y = 0.0;
     message.angular.z = angular_z;
+
+    RCLCPP_INFO_THROTTLE(
+      get_logger(),
+      *get_clock(),
+      500,
+      "velocity: vx=%.3f vy=%.3f wz=%.3f",
+      linear_x,
+      linear_y,
+      angular_z);
 
     cmd_vel_publisher_->publish(message);
   }
@@ -803,6 +867,126 @@ private:
     };
   }
 
+  void log_component_state(
+    const std::string &operation)
+  {
+    const auto state = component_state_.snapshot();
+
+    RCLCPP_INFO(
+      get_logger(),
+      "%s: power=%s servo=%s stream=%s",
+      operation.c_str(),
+      state.power ? "true" : "false",
+      state.servo ? "true" : "false",
+      state.stream ? "true" : "false");
+  }
+
+  json set_power_state(bool enabled)
+  {
+    const json result = call_state_service(
+      power_client_,
+      "/rby1/robot_power",
+      enabled,
+      "all",
+      0.0);
+
+    const bool success = result.value("success", false);
+    RCLCPP_INFO(
+      get_logger(),
+      "Power %s: %s (%s)",
+      enabled ? "ON" : "OFF",
+      success ? "success" : "failed",
+      result.value(
+        "message",
+        result.value("error", "no message")).c_str());
+
+    if (success)
+    {
+      component_state_.confirm_power(enabled);
+    }
+
+    log_component_state("State after Power");
+    return result;
+  }
+
+  json set_servo_state(bool enabled)
+  {
+    const json result = call_state_service(
+      servo_client_,
+      "/rby1/robot_servo",
+      enabled,
+      "all",
+      0.0);
+
+    const bool success = result.value("success", false);
+    RCLCPP_INFO(
+      get_logger(),
+      "Servo %s: %s (%s)",
+      enabled ? "ON" : "OFF",
+      success ? "success" : "failed",
+      result.value(
+        "message",
+        result.value("error", "no message")).c_str());
+
+    if (success)
+    {
+      component_state_.confirm_servo(enabled);
+    }
+
+    log_component_state("State after Servo");
+    return result;
+  }
+
+  json set_stream_state(bool enabled)
+  {
+    const json result = call_state_service(
+      stream_client_,
+      "/rby1/stream_control",
+      enabled,
+      "",
+      enabled ? 20.0 : 0.0);
+
+    const bool service_succeeded =
+      result.value("success", false);
+
+    bool confirmed = false;
+    if (service_succeeded)
+    {
+      confirmed = wait_for_stream(enabled, 5s);
+    }
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Stream %s: service=%s confirmed=%s",
+      enabled ? "ON" : "OFF",
+      service_succeeded ? "success" : "failed",
+      confirmed ? "true" : "false");
+
+    if (!service_succeeded)
+    {
+      log_component_state("State after Stream");
+      return result;
+    }
+
+    if (!confirmed)
+    {
+      log_component_state("State after Stream");
+      return {
+        {"success", false},
+        {
+          "error",
+          std::string("Stream state did not become ")
+            + (enabled ? "ON" : "OFF")
+        },
+        {"result", result}
+      };
+    }
+
+    component_state_.confirm_stream(enabled);
+    log_component_state("State after Stream");
+    return result;
+  }
+
   bool wait_for_ready(
     std::chrono::seconds timeout)
   {
@@ -864,137 +1048,85 @@ private:
 
   json prepare_robot()
   {
+    RCLCPP_INFO(get_logger(), "Prepare started");
     stop_robot();
 
-    bool already_ready = false;
-
     {
-      std::lock_guard<std::mutex> lock(
-        state_mutex_);
-
-      already_ready =
-        robot_is_ready_unlocked();
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      preparing_ = true;
     }
 
-    json power_result = {
-      {"success", true},
-      {
-        "message",
-        already_ready
-          ? "Robot is already enabled"
-          : "Power step pending"
-      }
+    const auto finish_prepare = [this](json result) {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      preparing_ = false;
+      return result;
     };
 
-    json servo_result = {
-      {"success", true},
-      {
-        "message",
-        already_ready
-          ? "Robot is already enabled"
-          : "Servo step pending"
-      }
-    };
-
-    if (!already_ready)
+    const json power_result = set_power_state(true);
+    if (!power_result.value("success", false))
     {
-      power_result =
-        call_state_service(
-          power_client_,
-          "/rby1/robot_power",
-          true,
-          "all",
-          0.0);
-
-      if (
-        !power_result.value(
-          "success",
-          false))
-      {
-        return {
-          {"success", false},
-          {"step", "power"},
-          {"result", power_result}
-        };
-      }
-
-      std::this_thread::sleep_for(1s);
-
-      servo_result =
-        call_state_service(
-          servo_client_,
-          "/rby1/robot_servo",
-          true,
-          "all",
-          0.0);
-
-      if (
-        !servo_result.value(
-          "success",
-          false))
-      {
-        return {
-          {"success", false},
-          {"step", "servo"},
-          {"result", servo_result}
-        };
-      }
-
-      if (!wait_for_ready(12s))
-      {
-        return {
-          {"success", false},
-          {"step", "wait_ready"},
-          {
-            "error",
-            "Robot did not reach ENABLE/EXECUTING"
-          }
-        };
-      }
-    }
-
-    json stream_result =
-      call_state_service(
-        stream_client_,
-        "/rby1/stream_control",
-        true,
-        "",
-        20.0);
-
-    if (
-      !stream_result.value(
-        "success",
-        false))
-    {
-      return {
+      RCLCPP_ERROR(get_logger(), "Prepare failed at Power");
+      return finish_prepare({
         {"success", false},
-        {"step", "stream"},
-        {"result", stream_result}
-      };
+        {"ready", false},
+        {"message", "Power step failed: " + power_result.value("error", power_result.value("message", "unknown error"))}
+      });
     }
 
-    if (!wait_for_stream(true, 5s))
+    const json servo_result = set_servo_state(true);
+    if (!servo_result.value("success", false))
     {
-      return {
+      RCLCPP_ERROR(get_logger(), "Prepare failed at Servo");
+      return finish_prepare({
         {"success", false},
-        {"step", "wait_stream"},
-        {
-          "error",
-          "Stream did not become ON"
-        }
-      };
+        {"ready", false},
+        {"message", "Servo step failed: " + servo_result.value("error", servo_result.value("message", "unknown error"))}
+      });
     }
 
-    return {
-      {"success", true},
-      {
-        "message",
-        "Robot is ready for desktop control"
-      },
-      {"power", power_result},
-      {"servo", servo_result},
-      {"stream", stream_result}
-    };
+    if (!wait_for_ready(12s))
+    {
+      RCLCPP_ERROR(get_logger(), "Prepare failed waiting for driver ready state");
+      return finish_prepare({
+        {"success", false},
+        {"ready", false},
+        {"message", "Robot did not reach ENABLE/EXECUTING after Servo"}
+      });
+    }
+
+    const json stream_result = set_stream_state(true);
+    if (!stream_result.value("success", false))
+    {
+      RCLCPP_ERROR(get_logger(), "Prepare failed at Stream");
+      return finish_prepare({
+        {"success", false},
+        {"ready", false},
+        {"message", "Stream step failed: " + stream_result.value("error", stream_result.value("message", "unknown error"))}
+      });
+    }
+
+    bool connected = false;
+    bool driver_ready = false;
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      connected = robot_is_connected_unlocked();
+      driver_ready = robot_is_ready_unlocked();
+    }
+
+    const bool ready = component_state_.ready(connected, driver_ready);
+    log_component_state("Prepare completed");
+    RCLCPP_INFO(get_logger(), "Prepare finished: ready=%s", ready ? "true" : "false");
+
+    if (!ready)
+    {
+      return finish_prepare({
+        {"success", false},
+        {"ready", false},
+        {"message", "Prepare steps completed but final state is not ready"}
+      });
+    }
+
+    return finish_prepare({{"success", true}, {"ready", true}});
   }
 
   std::vector<double> get_group_positions(
@@ -1014,6 +1146,86 @@ private:
     }
 
     return iterator->second.positions;
+  }
+
+  json save_ready_pose()
+  {
+    rby1_app_bridge::ReadyPose pose;
+
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+
+      for (const std::string &group : {
+          "torso",
+          "head",
+          "right_arm",
+          "left_arm"
+        })
+      {
+        const auto iterator = joint_groups_.find(group);
+        const std::size_t expected_count = expected_joint_count(group);
+
+        if (
+          iterator == joint_groups_.end()
+          || iterator->second.positions.size() != expected_count)
+        {
+          return {
+            {"success", false},
+            {"error", "Joint state is not ready for " + group},
+            {"ready_pose_saved", ready_pose_.saved()}
+          };
+        }
+
+        pose[group] = iterator->second.positions;
+      }
+    }
+
+    if (!ready_pose_.save(pose))
+    {
+      return {
+        {"success", false},
+        {"error", "Ready pose contains invalid joint positions"},
+        {"ready_pose_saved", ready_pose_.saved()}
+      };
+    }
+
+    RCLCPP_INFO(get_logger(), "Ready pose saved (22 upper-body joints)");
+
+    return {
+      {"success", true},
+      {"message", "Ready pose saved"},
+      {"ready_pose_saved", true}
+    };
+  }
+
+  json restore_ready_pose(double minimum_time)
+  {
+    const auto pose = ready_pose_.snapshot();
+
+    if (!rby1_app_bridge::ReadyPoseState::is_valid(pose))
+    {
+      return {
+        {"success", false},
+        {"error", "Ready pose has not been saved"},
+        {"ready_pose_saved", false}
+      };
+    }
+
+    json result = send_joint_goal(pose, minimum_time, 10);
+    result["ready_pose_saved"] = true;
+    return result;
+  }
+
+  json clear_ready_pose()
+  {
+    ready_pose_.clear();
+    RCLCPP_INFO(get_logger(), "Ready pose cleared");
+
+    return {
+      {"success", true},
+      {"message", "Ready pose cleared"},
+      {"ready_pose_saved", false}
+    };
   }
 
   json create_joint_status_response()
@@ -1418,12 +1630,7 @@ private:
         }
 
         const json stream_off_result =
-          call_state_service(
-            stream_client_,
-            "/rby1/stream_control",
-            false,
-            "",
-            0.0);
+          set_stream_state(false);
 
         if (
           !stream_off_result.value(
@@ -1434,19 +1641,6 @@ private:
             {"success", false},
             {"error", "Could not turn stream OFF"},
             {"stream_result", stream_off_result}
-          };
-
-          may_execute = false;
-        }
-        else if (
-          !wait_for_stream(false, 5s))
-        {
-          result = {
-            {"success", false},
-            {
-              "error",
-              "Stream did not become OFF"
-            }
           };
 
           may_execute = false;
@@ -1489,21 +1683,7 @@ private:
           "restoring_stream";
       }
 
-      restore_result =
-        call_state_service(
-          stream_client_,
-          "/rby1/stream_control",
-          true,
-          "",
-          20.0);
-
-      if (
-        restore_result.value(
-          "success",
-          false))
-      {
-        wait_for_stream(true, 5s);
-      }
+      restore_result = set_stream_state(true);
     }
 
     {
@@ -1592,6 +1772,12 @@ private:
     const auto response =
       future.get();
 
+    RCLCPP_INFO(
+      get_logger(),
+      "Cancel completed: success=%s",
+      response->success ? "true" : "false");
+    log_component_state("State after Cancel");
+
     return {
       {"success", response->success},
       {"message", response->message},
@@ -1604,16 +1790,62 @@ private:
     std::lock_guard<std::mutex> lock(
       state_mutex_);
 
+    const bool connected =
+      robot_is_connected_unlocked();
+
+    if (!connected)
+    {
+      component_state_.reset();
+    }
+
+    const auto components =
+      component_state_.snapshot();
+
+    const bool driver_available =
+      power_client_->service_is_ready()
+      && servo_client_->service_is_ready()
+      && stream_client_->service_is_ready()
+      && cancel_client_->service_is_ready();
+
+    const bool ready =
+      driver_available
+      && component_state_.ready(
+        connected,
+        robot_is_ready_unlocked());
+
+    const bool driving =
+      velocity_command_active_
+      && (
+        std::abs(desired_linear_x_) > 1e-6
+        || std::abs(desired_linear_y_) > 1e-6
+        || std::abs(desired_angular_z_) > 1e-6);
+
+    const bool fault =
+      control_manager_has_fault_unlocked()
+      || collision_
+      || emergency_stop_;
+
+    const auto description =
+      rby1_app_bridge::describe_status({
+        driver_available,
+        connected,
+        preparing_,
+        fault,
+        joint_action_busy_,
+        driving,
+        ready,
+        control_manager_fault_message_unlocked()
+      });
+
     return {
       {"success", true},
-      {
-        "connected",
-        robot_is_connected_unlocked()
-      },
-      {
-        "ready",
-        robot_is_ready_unlocked()
-      },
+      {"state", description.state},
+      {"connected", connected},
+      {"ready", ready},
+      {"power", components.power},
+      {"servo", components.servo},
+      {"stream", components.stream},
+      {"message", description.message},
       {
         "control_manager_state",
         control_manager_state_
@@ -1622,6 +1854,7 @@ private:
       {"collision", collision_},
       {"emergency_stop", emergency_stop_},
       {"robot_version", robot_version_},
+      {"ready_pose_saved", ready_pose_.saved()},
       {
         "velocity",
         {
@@ -1644,6 +1877,9 @@ private:
   json process_request(
     const json &request)
   {
+    std::lock_guard<std::mutex> command_lock(
+      command_mutex_);
+
     const std::string command =
       request.value(
         "command",
@@ -1704,12 +1940,7 @@ private:
         stop_robot();
       }
 
-      return call_state_service(
-        power_client_,
-        "/rby1/robot_power",
-        enabled,
-        "all",
-        0.0);
+      return set_power_state(enabled);
     }
 
     if (command == "servo")
@@ -1722,14 +1953,35 @@ private:
       if (!enabled)
       {
         stop_robot();
+
+        const auto components =
+          component_state_.snapshot();
+
+        if (components.stream)
+        {
+          RCLCPP_INFO(
+            get_logger(),
+            "Servo OFF requested while Stream is ON; "
+            "turning Stream OFF first");
+
+          const json stream_result =
+            set_stream_state(false);
+
+          if (!stream_result.value("success", false))
+          {
+            return {
+              {"success", false},
+              {
+                "message",
+                "Servo OFF aborted because Stream OFF failed"
+              },
+              {"stream_result", stream_result}
+            };
+          }
+        }
       }
 
-      return call_state_service(
-        servo_client_,
-        "/rby1/robot_servo",
-        enabled,
-        "all",
-        0.0);
+      return set_servo_state(enabled);
     }
 
     if (command == "stream")
@@ -1744,38 +1996,7 @@ private:
         stop_robot();
       }
 
-      const json result =
-        call_state_service(
-          stream_client_,
-          "/rby1/stream_control",
-          enabled,
-          "",
-          enabled ? 20.0 : 0.0);
-
-      if (
-        result.value(
-          "success",
-          false)
-        && !wait_for_stream(
-          enabled,
-          5s))
-      {
-        return {
-          {"success", false},
-          {
-            "error",
-            std::string(
-              "Stream state did not become ")
-              + (
-                enabled
-                  ? "ON"
-                  : "OFF")
-          },
-          {"result", result}
-        };
-      }
-
-      return result;
+      return set_stream_state(enabled);
     }
 
     if (command == "prepare")
@@ -1889,31 +2110,22 @@ private:
       return response;
     }
 
+    if (command == "set_ready_pose")
+    {
+      return save_ready_pose();
+    }
+
+    if (command == "clear_ready_pose")
+    {
+      return clear_ready_pose();
+    }
+
     if (command == "ready_pose")
     {
-      return send_joint_goal(
-        {
-          {
-            "torso",
-            {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
-          },
-          {
-            "right_arm",
-            {0.0, -0.5, 0.0, -1.57, 0.0, 0.0, 0.0}
-          },
-          {
-            "left_arm",
-            {0.0, 0.5, 0.0, -1.57, 0.0, 0.0, 0.0}
-          },
-          {
-            "head",
-            {0.0, 0.0}
-          }
-        },
+      return restore_ready_pose(
         request.value(
           "minimum_time",
-          5.0),
-        10);
+          5.0));
     }
 
     if (command == "arms_ready")
@@ -2147,6 +2359,13 @@ private:
     velocity_timer_;
 
   std::mutex state_mutex_;
+  std::mutex command_mutex_;
+
+  rby1_app_bridge::ComponentState
+    component_state_;
+
+  rby1_app_bridge::ReadyPoseState
+    ready_pose_;
 
   bool received_robot_state_{false};
   int control_manager_state_{0};
@@ -2179,6 +2398,8 @@ private:
   double desired_angular_z_{0.0};
 
   bool velocity_command_active_{false};
+
+  bool preparing_{false};
 
   std::chrono::steady_clock::time_point
     last_velocity_command_time_{};

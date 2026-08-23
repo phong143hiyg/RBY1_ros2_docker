@@ -1,0 +1,21 @@
+FROM local/rby1-ros2:humble
+
+SHELL ["/bin/bash", "-c"]
+
+USER root
+
+COPY patches/rby1-ros2-model-m-velocity.patch /tmp/rby1-ros2-model-m-velocity.patch
+
+RUN cd /opt/rby1_ros2_ws/src/rby1-ros2 \
+    && git apply --check /tmp/rby1-ros2-model-m-velocity.patch \
+    && git apply /tmp/rby1-ros2-model-m-velocity.patch
+
+RUN source /opt/ros/humble/setup.bash \
+    && cd /opt/rby1_ros2_ws \
+    && colcon build \
+       --packages-select rby1_driver \
+       --symlink-install \
+       --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+ENTRYPOINT ["/ros_entrypoint.sh"]
+CMD ["bash"]

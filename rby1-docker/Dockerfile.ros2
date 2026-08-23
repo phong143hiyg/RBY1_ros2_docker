@@ -108,6 +108,12 @@ RUN mkdir -p "${RBY1_ROS2_WS}/src" && \
         https://github.com/RainbowRobotics/rby1-ros2.git \
         "${RBY1_ROS2_WS}/src/rby1-ros2"
 
+# Log vx/vy/wz tại biên ROS 2 -> SDK để kiểm chứng lệnh SE(2) Model M.
+COPY patches/rby1-ros2-model-m-velocity.patch /tmp/rby1-ros2-model-m-velocity.patch
+
+RUN cd "${RBY1_ROS2_WS}/src/rby1-ros2" && \
+    git apply /tmp/rby1-ros2-model-m-velocity.patch
+
 # ============================================================
 # 7. Khởi tạo rosdep
 # ============================================================

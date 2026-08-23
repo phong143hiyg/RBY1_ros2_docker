@@ -1,0 +1,59 @@
+flowchart TB
+    %% Ba lớp kiến trúc. Chỉ khối có nhãn “Nhóm phát triển”
+    %% là mã do nhóm sở hữu; phần còn lại được dùng như hộp đen.
+
+    subgraph LAYER1["LAYER 1 — Người dùng và ứng dụng"]
+        direction LR
+
+        USER(["Người vận hành"])
+        BROWSER["Trình duyệt web"]
+        QT["Ứng dụng Desktop Qt<br/>Nhóm phát triển · repository riêng"]
+
+        USER -- "Thao tác giao diện" --> BROWSER
+        USER -- "Thao tác giao diện" --> QT
+    end
+
+    subgraph LAYER2["LAYER 2 — Điều khiển và tích hợp ROS 2"]
+        direction LR
+
+        WEB["Web Controller<br/>Nhóm phát triển<br/>Web UI + FastAPI · :8000"]
+        BRIDGE["App Bridge C++<br/>Nhóm phát triển<br/>TCP server + ROS 2 node · :8081"]
+        ROS["ROS 2 interface /rby1<br/>Dùng sẵn<br/>Topics · Services · Actions"]
+        DRIVER["rby1_ros2_driver<br/>Dùng sẵn · driver chính thức"]
+        SDK["RBY1 C++ SDK<br/>Dùng sẵn · thư viện chính thức"]
+    end
+
+    subgraph LAYER3["LAYER 3 — Robot / mô phỏng"]
+        direction LR
+
+        SIM["RB-Y1 MuJoCo Simulator<br/>Dùng sẵn · image chính thức"]
+    end
+
+    BROWSER -- "HTTP/JSON :8000<br/>REST: /api/prepare, /api/velocity,<br/>/api/joints/*, /api/stop, /api/cancel" --> WEB
+    WEB -- "WebSocket /ws/status<br/>JSON trạng thái mỗi ~100 ms" --> BROWSER
+
+    QT -- "TCP :8081 · NDJSON<br/>command JSON mỗi dòng" --> BRIDGE
+    BRIDGE -- "TCP :8081 · NDJSON<br/>response/status JSON mỗi dòng" --> QT
+
+    WEB -- "ROS 2 API / DDS<br/>Publish: /rby1/cmd_vel · Twist" --> ROS
+    WEB -- "ROS 2 API / DDS<br/>Service: robot_power, robot_servo,<br/>stream_control, cancel_control" --> ROS
+    WEB -- "ROS 2 Action API / DDS<br/>/rby1/robot_joint: goal + cancel" --> ROS
+    ROS -- "ROS 2 topic / DDS<br/>RobotState, Odometry, JointState" --> WEB
+
+    BRIDGE -- "ROS 2 API / DDS<br/>Publish cmd_vel; service requests" --> ROS
+    BRIDGE -- "ROS 2 Action API / DDS<br/>/rby1/robot_joint: goal + cancel" --> ROS
+    ROS -- "ROS 2 topic / DDS<br/>RobotState, JointState" --> BRIDGE
+
+    ROS -- "ROS 2 / rclcpp / DDS<br/>Lệnh và yêu cầu điều khiển" --> DRIVER
+    DRIVER -- "ROS 2 / rclcpp / DDS<br/>Trạng thái và phản hồi" --> ROS
+    DRIVER -- "RBY1 C++ SDK API" --> SDK
+    SDK -- "gRPC + Protocol Buffers<br/>Lệnh và yêu cầu trạng thái" --> SIM
+    SIM -- "gRPC + Protocol Buffers<br/>Robot state / feedback" --> SDK
+
+    classDef developed fill:#FFF2CC,stroke:#D6B656,color:#000,stroke-width:2px
+    classDef reused fill:#E2F0D9,stroke:#82B366,color:#000,stroke-width:2px
+    classDef external fill:#DAE8FC,stroke:#6C8EBF,color:#000,stroke-width:2px
+
+    class WEB,QT,BRIDGE developed
+    class ROS,DRIVER,SDK,SIM reused
+    class USER,BROWSER external

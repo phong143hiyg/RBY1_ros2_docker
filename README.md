@@ -170,6 +170,22 @@ Dừng đế:
 curl -X POST http://localhost:8000/api/stop
 ```
 
+### TCP Ready pose động
+
+Desktop controller giao tiếp với `rby1-app-bridge` qua TCP port `8081`; mỗi JSON request và response chiếm một dòng. Gửi `set_ready_pose` để lưu snapshot hiện tại của 22 khớp thân trên (torso 6, head 2, mỗi tay 7). Bridge không lưu mobility/wheel joints và chỉ thay snapshot khi đủ toàn bộ giá trị hữu hạn.
+
+```json
+{"command":"set_ready_pose"}
+```
+
+Kết quả thành công:
+
+```json
+{"success":true,"message":"Ready pose saved","ready_pose_saved":true}
+```
+
+Sau đó, dùng lệnh đã có `ready_pose` (có thể kèm `minimum_time`) để robot trở về snapshot này. Gửi `{"command":"clear_ready_pose"}` để xoá snapshot. Nếu snapshot chưa được lưu trong phiên Bridge hiện tại, lệnh `ready_pose` trả lỗi thay vì chạy ready pose tĩnh. Trường `ready_pose_saved` cũng có trong response `status`.
+
 ## ROS 2 interface
 
 Web controller và app bridge sử dụng namespace `/rby1` với các interface chính:

@@ -18,6 +18,8 @@ find_package(rby1_msgs REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(nlohmann_json REQUIRED)
 
+include_directories(include)
+
 add_executable(
   rby1_app_bridge_node
   src/main.cpp
@@ -43,5 +45,22 @@ install(
   TARGETS rby1_app_bridge_node
   DESTINATION lib/${PROJECT_NAME}
 )
+
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(
+    component_state_test
+    test/component_state_test.cpp
+  )
+  target_include_directories(
+    component_state_test
+    PRIVATE include
+  )
+endif()
 
 ament_package()
