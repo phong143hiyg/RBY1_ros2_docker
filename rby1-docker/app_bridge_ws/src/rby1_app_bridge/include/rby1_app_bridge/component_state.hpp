@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <mutex>
 
 namespace rby1_app_bridge
@@ -10,7 +11,53 @@ struct ComponentStateSnapshot
   bool power{false};
   bool servo{false};
   bool stream{false};
+
+  bool all_enabled() const
+  {
+    return power && servo && stream;
+  }
 };
+
+enum class Component
+{
+  Servo,
+  Stream,
+  Power
+};
+
+inline constexpr std::array<Component, 3>
+POWER_OFF_ORDER = {
+  Component::Servo,
+  Component::Stream,
+  Component::Power
+};
+
+template<typename Operation>
+bool run_power_off_sequence(Operation operation)
+{
+  bool success = true;
+
+  for (const auto component : POWER_OFF_ORDER)
+  {
+    const bool step_succeeded = operation(component);
+    success = step_succeeded && success;
+  }
+
+  return success;
+}
+
+inline bool can_enable_power_dependent(
+  const ComponentStateSnapshot &state,
+  bool enabled)
+{
+  return !enabled || state.power;
+}
+
+inline bool can_prepare(
+  const ComponentStateSnapshot &state)
+{
+  return state.all_enabled();
+}
 
 class ComponentState
 {
@@ -29,6 +76,7 @@ public:
     if (!enabled)
     {
       servo_ = false;
+      stream_ = false;
     }
   }
 
@@ -55,7 +103,7 @@ public:
   bool ready(bool connected, bool driver_ready) const
   {
     const auto state = snapshot();
-    return connected && driver_ready && state.power && state.servo && state.stream;
+    return connected && driver_ready && state.all_enabled();
   }
 
 private:

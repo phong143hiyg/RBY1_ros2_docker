@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cmath>
 #include <cctype>
+#include <exception>
 #include <future>
 #include <map>
 #include <memory>
@@ -909,6 +910,77 @@ private:
     return result;
   }
 
+  json safely_disable_power()
+  {
+    stop_robot();
+
+    json steps = json::object();
+    const bool all_steps_succeeded =
+      rby1_app_bridge::run_power_off_sequence(
+        [this, &steps](
+          const rby1_app_bridge::Component component)
+        {
+          json result;
+          std::string name;
+
+          try
+          {
+            if (component == rby1_app_bridge::Component::Servo)
+            {
+              name = "servo";
+              result = set_servo_state(false);
+            }
+            else if (component == rby1_app_bridge::Component::Stream)
+            {
+              name = "stream";
+              result = set_stream_state(false);
+            }
+            else
+            {
+              name = "power";
+              result = set_power_state(false);
+            }
+          }
+          catch (const std::exception &exception)
+          {
+            result = {
+              {"success", false},
+              {"error", exception.what()}
+            };
+          }
+
+          const bool success =
+            result.value("success", false);
+
+          steps[name] = std::move(result);
+          return success;
+        });
+
+    const auto state = component_state_.snapshot();
+    const bool fully_disabled =
+      !state.power
+      && !state.servo
+      && !state.stream;
+
+    return {
+      {
+        "success",
+        all_steps_succeeded && fully_disabled
+      },
+      {
+        "message",
+        all_steps_succeeded && fully_disabled
+          ? "Servo, Stream and Power disabled"
+          : "Power shutdown did not complete successfully"
+      },
+      {"ready", false},
+      {"power", state.power},
+      {"servo", state.servo},
+      {"stream", state.stream},
+      {"steps", steps}
+    };
+  }
+
   json set_servo_state(bool enabled)
   {
     const json result = call_state_service(
@@ -1049,6 +1121,34 @@ private:
   json prepare_robot()
   {
     RCLCPP_INFO(get_logger(), "Prepare started");
+
+    const auto initial_components =
+      component_state_.snapshot();
+
+    if (
+      !rby1_app_bridge::can_prepare(
+        initial_components))
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "Prepare rejected: power=%s servo=%s stream=%s",
+        initial_components.power ? "true" : "false",
+        initial_components.servo ? "true" : "false",
+        initial_components.stream ? "true" : "false");
+
+      return {
+        {"success", false},
+        {"ready", false},
+        {"power", initial_components.power},
+        {"servo", initial_components.servo},
+        {"stream", initial_components.stream},
+        {
+          "message",
+          "Power, Servo and Stream must be enabled before prepare"
+        }
+      };
+    }
+
     stop_robot();
 
     {
@@ -1062,46 +1162,13 @@ private:
       return result;
     };
 
-    const json power_result = set_power_state(true);
-    if (!power_result.value("success", false))
-    {
-      RCLCPP_ERROR(get_logger(), "Prepare failed at Power");
-      return finish_prepare({
-        {"success", false},
-        {"ready", false},
-        {"message", "Power step failed: " + power_result.value("error", power_result.value("message", "unknown error"))}
-      });
-    }
-
-    const json servo_result = set_servo_state(true);
-    if (!servo_result.value("success", false))
-    {
-      RCLCPP_ERROR(get_logger(), "Prepare failed at Servo");
-      return finish_prepare({
-        {"success", false},
-        {"ready", false},
-        {"message", "Servo step failed: " + servo_result.value("error", servo_result.value("message", "unknown error"))}
-      });
-    }
-
     if (!wait_for_ready(12s))
     {
       RCLCPP_ERROR(get_logger(), "Prepare failed waiting for driver ready state");
       return finish_prepare({
         {"success", false},
         {"ready", false},
-        {"message", "Robot did not reach ENABLE/EXECUTING after Servo"}
-      });
-    }
-
-    const json stream_result = set_stream_state(true);
-    if (!stream_result.value("success", false))
-    {
-      RCLCPP_ERROR(get_logger(), "Prepare failed at Stream");
-      return finish_prepare({
-        {"success", false},
-        {"ready", false},
-        {"message", "Stream step failed: " + stream_result.value("error", stream_result.value("message", "unknown error"))}
+        {"message", "Robot did not reach ENABLE/EXECUTING"}
       });
     }
 
@@ -1122,7 +1189,7 @@ private:
       return finish_prepare({
         {"success", false},
         {"ready", false},
-        {"message", "Prepare steps completed but final state is not ready"}
+        {"message", "A prepare precondition is no longer satisfied"}
       });
     }
 
@@ -1937,7 +2004,7 @@ private:
 
       if (!enabled)
       {
-        stop_robot();
+        return safely_disable_power();
       }
 
       return set_power_state(enabled);
@@ -1949,6 +2016,17 @@ private:
         request.value(
           "enabled",
           false);
+
+      if (
+        !rby1_app_bridge::can_enable_power_dependent(
+          component_state_.snapshot(),
+          enabled))
+      {
+        return {
+          {"success", false},
+          {"message", "Power must be enabled first"}
+        };
+      }
 
       if (!enabled)
       {
@@ -1990,6 +2068,17 @@ private:
         request.value(
           "enabled",
           false);
+
+      if (
+        !rby1_app_bridge::can_enable_power_dependent(
+          component_state_.snapshot(),
+          enabled))
+      {
+        return {
+          {"success", false},
+          {"message", "Power must be enabled first"}
+        };
+      }
 
       if (!enabled)
       {

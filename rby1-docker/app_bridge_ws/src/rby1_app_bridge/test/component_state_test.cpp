@@ -1,6 +1,7 @@
 #include <atomic>
 #include <limits>
 #include <thread>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -9,10 +10,79 @@
 #include "rby1_app_bridge/status_state.hpp"
 
 using rby1_app_bridge::ComponentState;
+using rby1_app_bridge::ComponentStateSnapshot;
+using rby1_app_bridge::Component;
+using rby1_app_bridge::POWER_OFF_ORDER;
 using rby1_app_bridge::ReadyPose;
 using rby1_app_bridge::ReadyPoseState;
 using rby1_app_bridge::StatusInputs;
+using rby1_app_bridge::can_enable_power_dependent;
+using rby1_app_bridge::can_prepare;
 using rby1_app_bridge::describe_status;
+using rby1_app_bridge::run_power_off_sequence;
+
+TEST(ComponentDependency, RejectsServoOnWhenPowerIsOff)
+{
+  ComponentState state;
+  EXPECT_FALSE(
+    can_enable_power_dependent(
+      state.snapshot(),
+      true));
+}
+
+TEST(ComponentDependency, RejectsStreamOnWhenPowerIsOff)
+{
+  ComponentState state;
+  EXPECT_FALSE(
+    can_enable_power_dependent(
+      state.snapshot(),
+      true));
+}
+
+TEST(ComponentDependency, AllowsDependentOffWhenPowerIsOff)
+{
+  ComponentState state;
+  EXPECT_TRUE(
+    can_enable_power_dependent(
+      state.snapshot(),
+      false));
+}
+
+TEST(ComponentDependency, PowerOffUsesSafeServiceOrder)
+{
+  std::vector<Component> calls;
+
+  const bool success = run_power_off_sequence(
+    [&calls](const Component component)
+    {
+      calls.push_back(component);
+      return true;
+    });
+
+  EXPECT_TRUE(success);
+  EXPECT_EQ(
+    calls,
+    (std::vector<Component>{
+      Component::Servo,
+      Component::Stream,
+      Component::Power
+    }));
+}
+
+TEST(ComponentDependency, PowerOffAttemptsEveryStepAfterFailure)
+{
+  std::vector<Component> calls;
+
+  const bool success = run_power_off_sequence(
+    [&calls](const Component component)
+    {
+      calls.push_back(component);
+      return component != Component::Servo;
+    });
+
+  EXPECT_FALSE(success);
+  EXPECT_EQ(calls.size(), POWER_OFF_ORDER.size());
+}
 
 TEST(ComponentState, PrepareThenStatusIsReady)
 {
@@ -43,7 +113,7 @@ TEST(ComponentState, ServoOffInvalidatesReadyAndCanRecover)
   EXPECT_TRUE(state.ready(true, true));
 }
 
-TEST(ComponentState, PowerOffCascadesToServoAndCanRecover)
+TEST(ComponentState, PowerOffCascadesToServoStreamAndReady)
 {
   ComponentState state;
   state.confirm_power(true);
@@ -54,11 +124,35 @@ TEST(ComponentState, PowerOffCascadesToServoAndCanRecover)
   const auto powered_off = state.snapshot();
   EXPECT_FALSE(powered_off.power);
   EXPECT_FALSE(powered_off.servo);
+  EXPECT_FALSE(powered_off.stream);
   EXPECT_FALSE(state.ready(true, true));
 
   state.confirm_power(true);
   state.confirm_servo(true);
+  state.confirm_stream(true);
   EXPECT_TRUE(state.ready(true, true));
+}
+
+TEST(ComponentState, StatusSnapshotReflectsAllThreeStates)
+{
+  ComponentState state;
+  state.confirm_power(true);
+  state.confirm_servo(false);
+  state.confirm_stream(true);
+
+  const auto snapshot = state.snapshot();
+  EXPECT_TRUE(snapshot.power);
+  EXPECT_FALSE(snapshot.servo);
+  EXPECT_TRUE(snapshot.stream);
+  EXPECT_FALSE(state.ready(true, true));
+}
+
+TEST(ComponentDependency, PrepareRejectsEveryMissingSubsystem)
+{
+  EXPECT_FALSE(can_prepare(ComponentStateSnapshot{false, true, true}));
+  EXPECT_FALSE(can_prepare(ComponentStateSnapshot{true, false, true}));
+  EXPECT_FALSE(can_prepare(ComponentStateSnapshot{true, true, false}));
+  EXPECT_TRUE(can_prepare(ComponentStateSnapshot{true, true, true}));
 }
 
 TEST(ComponentState, StreamOffInvalidatesReadyAndCanRecover)

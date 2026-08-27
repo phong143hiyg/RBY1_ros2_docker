@@ -19,7 +19,7 @@ Giao diện web hỗ trợ:
 
 - Theo dõi kết nối, trạng thái control manager, stream, va chạm, odometry và các khớp theo thời gian thực.
 - Chuẩn bị robot, bật/tắt stream và hủy lệnh điều khiển.
-- Điều khiển đế bằng nút trên màn hình hoặc bàn phím `W/A/S/D/Q/E`.
+- Điều khiển đế bằng các nút điều hướng trên màn hình.
 - Điều khiển từng khớp của thân, hai tay và đầu; chuyển sang ready pose hoặc zero pose.
 - Tự dừng đế khi mất lệnh vận tốc quá 350 ms hoặc khi WebSocket bị ngắt.
 
@@ -126,7 +126,7 @@ xhost -local:docker
 2. Mở `http://localhost:8000` và kiểm tra trạng thái kết nối.
 3. Nhấn **Chuẩn bị robot**.
 4. Bật stream nếu giao diện chưa báo `ON`.
-5. Giữ phím hoặc nút điều hướng để di chuyển; thả phím để dừng.
+5. Giữ nút điều hướng để di chuyển; thả nút để dừng.
 6. Chỉ gửi lệnh khớp khi robot đứng yên và vùng chuyển động an toàn.
 7. Dùng **DỪNG ĐẾ** để dừng chuyển động đế, hoặc **Hủy toàn bộ** để hủy các lệnh điều khiển.
 

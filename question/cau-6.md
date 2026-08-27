@@ -63,24 +63,17 @@ Docker Compose chia hệ thống thành bốn service:
 
 ## 2. Các thuật toán và cơ chế xử lý
 
-### 2.1. Tổng hợp vector điều khiển từ bàn phím
+### 2.1. Tiếp nhận vector vận tốc từ ứng dụng điều khiển
 
-Mỗi phím được ánh xạ thành một vector chuyển động:
-
-```text
-W/S → vận tốc tịnh tiến theo X
-A/D → vận tốc tịnh tiến theo Y
-Q/E → vận tốc quay quanh Z
-```
-
-Khi nhiều phím được nhấn cùng lúc, các vector được cộng lại. Mỗi thành phần sau đó được giới hạn trong `[-1, 1]` và nhân với mức vận tốc người dùng đã chọn:
+Ứng dụng Qt gửi lệnh `velocity` qua TCP/JSON với ba thành phần:
 
 ```text
-direction = clamp(sum(key_vectors), -1, 1)
-velocity = direction × selected_speed
+linear_x  → vận tốc tịnh tiến theo X
+linear_y  → vận tốc tịnh tiến theo Y
+angular_z → vận tốc quay quanh Z
 ```
 
-Nhờ đó robot có thể thực hiện các chuyển động kết hợp, chẳng hạn vừa tiến vừa quay.
+App Bridge kiểm tra các giá trị đầu vào, giới hạn chúng trong phạm vi an toàn, lưu vector vận tốc mong muốn và chuyển thành message `geometry_msgs/Twist` để publish lên `/rby1/cmd_vel`. Cơ chế này cho phép thực hiện đồng thời chuyển động tịnh tiến và quay mà không phụ thuộc vào thiết bị nhập cụ thể của giao diện.
 
 ### 2.2. Giới hạn giá trị bằng Saturation/Clamping
 
@@ -95,7 +88,7 @@ Thời gian tối thiểu của joint action và độ dịch chuyển của l�
 
 ### 2.3. Dead-man Watchdog
 
-Frontend gửi lại lệnh vận tốc khoảng mỗi `100 ms`, trong khi backend publish ở tần số `20 Hz`. Backend lưu thời điểm nhận lệnh gần nhất:
+Ứng dụng điều khiển phải gửi lại lệnh vận tốc theo chu kỳ, trong khi App Bridge chạy watchdog và publish ở tần số `20 Hz`. App Bridge lưu thời điểm nhận lệnh gần nhất:
 
 ```text
 elapsed = current_time - last_command_time
@@ -107,7 +100,7 @@ Nếu `elapsed > 350 ms`, watchdog tự động đổi vận tốc thành:
 vx = 0, vy = 0, wz = 0
 ```
 
-Robot cũng được yêu cầu dừng khi người dùng nhả phím, cửa sổ mất focus, WebSocket bị ngắt hoặc trang web bị đóng. Lệnh zero được publish nhiều lần để tăng khả năng driver nhận được lệnh dừng.
+Robot cũng được yêu cầu dừng khi ứng dụng gửi lệnh `stop`, kết nối TCP bị ngắt hoặc bridge kết thúc. Lệnh zero được publish nhiều lần để tăng khả năng driver nhận được lệnh dừng.
 
 ### 2.4. Safety Gating
 
@@ -190,7 +183,6 @@ Script `my_mobile_motion.py` sử dụng vận tốc tiến `v` và vận tốc 
 R = v / |ω|
 T = 2π / |ω|
 ```
-
 Lệnh được publish ở khoảng `25 Hz` trong thời gian `T`. Đây là điều khiển quỹ đạo tròn **open-loop**, nghĩa là chương trình chưa sử dụng odometry để hiệu chỉnh sai số quỹ đạo.
 
 ### 2.11. Quy trình chuẩn bị robot tuần tự và fail-fast
