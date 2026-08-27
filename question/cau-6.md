@@ -183,6 +183,7 @@ Script `my_mobile_motion.py` sử dụng vận tốc tiến `v` và vận tốc 
 R = v / |ω|
 T = 2π / |ω|
 ```
+
 Lệnh được publish ở khoảng `25 Hz` trong thời gian `T`. Đây là điều khiển quỹ đạo tròn **open-loop**, nghĩa là chương trình chưa sử dụng odometry để hiệu chỉnh sai số quỹ đạo.
 
 ### 2.11. Quy trình chuẩn bị robot tuần tự và fail-fast
