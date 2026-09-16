@@ -97,22 +97,24 @@ RUN cmake \
     cmake --build build --target install --parallel "$(nproc)"
 
 # ============================================================
-# 6. Clone rby1-ros2 vào workspace
+# 6. Fetch đúng commit rby1-ros2 đã được kiểm chứng với SDK v0.10.0
 # ============================================================
-ARG RBY1_ROS2_REF=main
+ARG RBY1_ROS2_REF=2493c8dd62dc835d5f3142d9d49ca7a8f8959f1b
 
 RUN mkdir -p "${RBY1_ROS2_WS}/src" && \
     git clone \
-        --branch "${RBY1_ROS2_REF}" \
-        --depth 1 \
         https://github.com/RainbowRobotics/rby1-ros2.git \
-        "${RBY1_ROS2_WS}/src/rby1-ros2"
+        "${RBY1_ROS2_WS}/src/rby1-ros2" && \
+    git -C "${RBY1_ROS2_WS}/src/rby1-ros2" checkout \
+        --detach "${RBY1_ROS2_REF}"
 
 # Log vx/vy/wz tại biên ROS 2 -> SDK để kiểm chứng lệnh SE(2) Model M.
 COPY patches/rby1-ros2-model-m-velocity.patch /tmp/rby1-ros2-model-m-velocity.patch
+COPY patches/rby1-ros2-observed-component-state.patch /tmp/rby1-ros2-observed-component-state.patch
 
 RUN cd "${RBY1_ROS2_WS}/src/rby1-ros2" && \
-    git apply /tmp/rby1-ros2-model-m-velocity.patch
+    git apply /tmp/rby1-ros2-model-m-velocity.patch && \
+    git apply /tmp/rby1-ros2-observed-component-state.patch
 
 # ============================================================
 # 7. Khởi tạo rosdep

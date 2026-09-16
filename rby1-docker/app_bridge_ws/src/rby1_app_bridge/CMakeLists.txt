@@ -61,6 +61,10 @@ if(BUILD_TESTING)
     component_state_test
     PRIVATE include
   )
+  target_link_libraries(
+    component_state_test
+    nlohmann_json::nlohmann_json
+  )
 endif()
 
 ament_package()

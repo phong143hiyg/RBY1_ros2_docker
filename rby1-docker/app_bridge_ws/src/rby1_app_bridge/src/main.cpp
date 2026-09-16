@@ -1,8 +1,10 @@
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cctype>
+#include <cstdint>
 #include <exception>
 #include <future>
 #include <map>
@@ -27,6 +29,7 @@
 #include <std_srvs/srv/trigger.hpp>
 
 #include "rby1_app_bridge/component_state.hpp"
+#include "rby1_app_bridge/protocol.hpp"
 #include "rby1_app_bridge/ready_pose_state.hpp"
 #include "rby1_app_bridge/status_state.hpp"
 
@@ -183,6 +186,67 @@ private:
   static constexpr auto VELOCITY_COMMAND_TIMEOUT =
     std::chrono::milliseconds(350);
 
+  static constexpr auto COMPONENT_COMMAND_TIMEOUT =
+    std::chrono::seconds(10);
+
+  static rby1_app_bridge::ObservedState component_state_from_message(
+    const std::uint8_t state)
+  {
+    if (state == rby1_msgs::msg::RobotState::COMPONENT_STATE_ON)
+    {
+      return rby1_app_bridge::ObservedState::On;
+    }
+
+    if (state == rby1_msgs::msg::RobotState::COMPONENT_STATE_OFF)
+    {
+      return rby1_app_bridge::ObservedState::Off;
+    }
+
+    return rby1_app_bridge::ObservedState::Unknown;
+  }
+
+  void log_observation_change(
+    const rby1_app_bridge::ObservationChange &change)
+  {
+    if (change.state_changed)
+    {
+      RCLCPP_INFO(
+        get_logger(),
+        "%s observed: %s -> %s (source=%s)",
+        rby1_app_bridge::to_string(change.component),
+        rby1_app_bridge::to_string(change.previous),
+        rby1_app_bridge::to_string(change.current),
+        change.source.c_str());
+    }
+
+    if (change.pending_target_observed)
+    {
+      RCLCPP_INFO(
+        get_logger(),
+        "%s pending target observed (source=%s)",
+        rby1_app_bridge::to_string(change.component),
+        change.source.c_str());
+    }
+  }
+
+  void log_components_unknown(
+    const std::string &reason,
+    const std::array<
+      rby1_app_bridge::ObservationChange,
+      3
+    > &changes)
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "Robot connection lost: %s; component states are unknown",
+      reason.c_str());
+
+    for (const auto &change : changes)
+    {
+      log_observation_change(change);
+    }
+  }
+
   static std::size_t expected_joint_count(
     const std::string &group)
   {
@@ -229,44 +293,75 @@ private:
   void robot_state_callback(
     const rby1_msgs::msg::RobotState::SharedPtr message)
   {
-    std::lock_guard<std::mutex> lock(state_mutex_);
+    bool reconnected = false;
+    rby1_app_bridge::ObservationChange power_change;
+    rby1_app_bridge::ObservationChange servo_change;
+    rby1_app_bridge::ObservationChange stream_change;
 
-    const bool connection_was_stale =
-      received_robot_state_
-      && !robot_is_connected_unlocked();
-
-    if (connection_was_stale)
     {
-      component_state_.reset();
+      std::lock_guard<std::mutex> lock(state_mutex_);
+
+      reconnected =
+        received_robot_state_
+        && !robot_is_connected_unlocked();
+
+      received_robot_state_ = true;
+
+      control_manager_state_ =
+        static_cast<int>(
+          message->control_manager_state);
+
+      stream_enabled_ =
+        static_cast<bool>(
+          message->robot_stream_state);
+
+      collision_ =
+        static_cast<bool>(
+          message->collision);
+
+      emergency_stop_ =
+        static_cast<bool>(
+          message->emo_state);
+
+      robot_version_ =
+        static_cast<double>(
+          message->robot_version);
+
+      last_robot_state_time_ =
+        std::chrono::steady_clock::now();
+
+      connection_loss_reported_ = false;
+
+      power_change = component_state_.observe(
+        rby1_app_bridge::Component::Power,
+        component_state_from_message(
+          message->power_state),
+        "robot_api");
+
+      servo_change = component_state_.observe(
+        rby1_app_bridge::Component::Servo,
+        component_state_from_message(
+          message->servo_state),
+        "robot_api");
+
+      stream_change = component_state_.observe(
+        rby1_app_bridge::Component::Stream,
+        message->robot_stream_state
+          ? rby1_app_bridge::ObservedState::On
+          : rby1_app_bridge::ObservedState::Off,
+        "robot_state");
     }
 
-    received_robot_state_ = true;
+    if (reconnected)
+    {
+      RCLCPP_INFO(
+        get_logger(),
+        "Robot state reconnected; resynchronizing components");
+    }
 
-    control_manager_state_ =
-      static_cast<int>(
-        message->control_manager_state);
-
-    stream_enabled_ =
-      static_cast<bool>(
-        message->robot_stream_state);
-
-    component_state_.confirm_stream(
-      stream_enabled_);
-
-    collision_ =
-      static_cast<bool>(
-        message->collision);
-
-    emergency_stop_ =
-      static_cast<bool>(
-        message->emo_state);
-
-    robot_version_ =
-      static_cast<double>(
-        message->robot_version);
-
-    last_robot_state_time_ =
-      std::chrono::steady_clock::now();
+    log_observation_change(power_change);
+    log_observation_change(servo_change);
+    log_observation_change(stream_change);
   }
 
   static std::string normalize_joint_name(
@@ -547,6 +642,35 @@ private:
       < ROBOT_STATE_TIMEOUT;
   }
 
+  void check_connection_timeout()
+  {
+    bool connection_lost = false;
+    std::array<
+      rby1_app_bridge::ObservationChange,
+      3
+    > changes;
+
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      if (
+        received_robot_state_
+        && !robot_is_connected_unlocked()
+        && !connection_loss_reported_)
+      {
+        connection_loss_reported_ = true;
+        connection_lost = true;
+        changes = component_state_.mark_disconnected();
+      }
+    }
+
+    if (connection_lost)
+    {
+      log_components_unknown(
+        "RobotState timeout",
+        changes);
+    }
+  }
+
   bool robot_is_ready_unlocked() const
   {
     return
@@ -726,6 +850,8 @@ private:
 
   void velocity_watchdog()
   {
+    check_connection_timeout();
+
     double linear_x = 0.0;
     double linear_y = 0.0;
     double angular_z = 0.0;
@@ -738,11 +864,6 @@ private:
 
       const bool connected =
         robot_is_connected_unlocked();
-
-      if (!connected)
-      {
-        component_state_.reset();
-      }
 
       if (velocity_command_active_)
       {
@@ -817,9 +938,22 @@ private:
     bool enabled,
     const std::string &parameters,
     double value,
-    std::chrono::seconds timeout = 10s)
+    const std::chrono::steady_clock::time_point deadline)
   {
-    if (!client->wait_for_service(3s))
+    const auto now = std::chrono::steady_clock::now();
+    if (now >= deadline)
+    {
+      return {
+        {"success", false},
+        {"error", "Component command deadline expired before service call"}
+      };
+    }
+
+    const auto service_wait = std::min(
+      deadline - now,
+      std::chrono::duration_cast<std::chrono::steady_clock::duration>(3s));
+
+    if (!client->wait_for_service(service_wait))
     {
       return {
         {"success", false},
@@ -844,7 +978,7 @@ private:
       client->async_send_request(request);
 
     if (
-      future.wait_for(timeout)
+      future.wait_until(deadline)
       != std::future_status::ready)
     {
       return {
@@ -877,14 +1011,176 @@ private:
       get_logger(),
       "%s: power=%s servo=%s stream=%s",
       operation.c_str(),
-      state.power ? "true" : "false",
-      state.servo ? "true" : "false",
-      state.stream ? "true" : "false");
+      rby1_app_bridge::to_string(state.power.state),
+      rby1_app_bridge::to_string(state.servo.state),
+      rby1_app_bridge::to_string(state.stream.state));
+  }
+
+  static rby1_app_bridge::ComponentSnapshot component_snapshot(
+    const rby1_app_bridge::ComponentStateSnapshot &state,
+    const rby1_app_bridge::Component component)
+  {
+    if (component == rby1_app_bridge::Component::Power)
+    {
+      return state.power;
+    }
+
+    if (component == rby1_app_bridge::Component::Servo)
+    {
+      return state.servo;
+    }
+
+    return state.stream;
+  }
+
+  json command_component_state(
+    const rby1_app_bridge::Component component,
+    const rclcpp::Client<
+      rby1_msgs::srv::StateOnOff
+    >::SharedPtr &client,
+    const std::string &service_name,
+    const bool enabled,
+    const std::string &parameters,
+    const double value)
+  {
+    rby1_app_bridge::PendingTransition transition;
+    check_connection_timeout();
+
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      if (!robot_is_connected_unlocked())
+      {
+        return {
+          {"success", false},
+          {"error", "Robot state is not connected"}
+        };
+      }
+
+      transition = component_state_.begin_pending(
+        component,
+        enabled);
+    }
+
+    const auto deadline =
+      transition.started_at
+      + COMPONENT_COMMAND_TIMEOUT;
+
+    RCLCPP_INFO(
+      get_logger(),
+      "%s pending started: target=%s deadline_ms=%lld",
+      rby1_app_bridge::to_string(component),
+      enabled ? "on" : "off",
+      static_cast<long long>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+          COMPONENT_COMMAND_TIMEOUT).count()));
+
+    json service_result;
+    try
+    {
+      service_result = call_state_service(
+        client,
+        service_name,
+        enabled,
+        parameters,
+        value,
+        deadline);
+    }
+    catch (const std::exception &exception)
+    {
+      component_state_.cancel_pending(transition);
+      RCLCPP_ERROR(
+        get_logger(),
+        "%s pending ended: service exception: %s",
+        rby1_app_bridge::to_string(component),
+        exception.what());
+      return {
+        {"success", false},
+        {"error", exception.what()},
+        {"service", service_name}
+      };
+    }
+
+    if (!service_result.value("success", false))
+    {
+      component_state_.cancel_pending(transition);
+      RCLCPP_WARN(
+        get_logger(),
+        "%s pending ended: service failed (%s)",
+        rby1_app_bridge::to_string(component),
+        service_result.value(
+          "message",
+          service_result.value("error", "no message")).c_str());
+      return service_result;
+    }
+
+    const auto confirmation =
+      component_state_.wait_for(
+        transition,
+        deadline);
+
+    const auto elapsed =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now()
+        - transition.started_at).count();
+
+    const auto observed = component_snapshot(
+      component_state_.snapshot(),
+      component);
+
+    if (confirmation == rby1_app_bridge::ConfirmationResult::Confirmed)
+    {
+      RCLCPP_INFO(
+        get_logger(),
+        "%s pending ended: observed=%s source=%s elapsed_ms=%lld",
+        rby1_app_bridge::to_string(component),
+        rby1_app_bridge::to_string(observed.state),
+        observed.source.c_str(),
+        static_cast<long long>(elapsed));
+
+      service_result["confirmed"] = true;
+      service_result["component"] =
+        rby1_app_bridge::component_status_json(observed);
+      return service_result;
+    }
+
+    const bool timed_out =
+      confirmation == rby1_app_bridge::ConfirmationResult::TimedOut;
+
+    RCLCPP_ERROR(
+      get_logger(),
+      "%s pending ended: %s target=%s observed=%s source=%s elapsed_ms=%lld",
+      rby1_app_bridge::to_string(component),
+      timed_out ? "timeout" : "interrupted",
+      enabled ? "on" : "off",
+      rby1_app_bridge::to_string(observed.state),
+      observed.source.c_str(),
+      static_cast<long long>(elapsed));
+
+    return {
+      {"success", false},
+      {
+        "error",
+        std::string(rby1_app_bridge::to_string(component))
+          + " service succeeded but observed "
+          + observed.source
+          + " state did not become "
+          + (enabled ? "ON" : "OFF")
+          + (timed_out
+            ? " before the monotonic deadline"
+            : " because observation was interrupted")
+      },
+      {"service_result", service_result},
+      {
+        "component",
+        rby1_app_bridge::component_status_json(observed)
+      }
+    };
   }
 
   json set_power_state(bool enabled)
   {
-    const json result = call_state_service(
+    const json result = command_component_state(
+      rby1_app_bridge::Component::Power,
       power_client_,
       "/rby1/robot_power",
       enabled,
@@ -900,11 +1196,6 @@ private:
       result.value(
         "message",
         result.value("error", "no message")).c_str());
-
-    if (success)
-    {
-      component_state_.confirm_power(enabled);
-    }
 
     log_component_state("State after Power");
     return result;
@@ -958,9 +1249,7 @@ private:
 
     const auto state = component_state_.snapshot();
     const bool fully_disabled =
-      !state.power
-      && !state.servo
-      && !state.stream;
+      state.all_known_disabled();
 
     return {
       {
@@ -974,16 +1263,30 @@ private:
           : "Power shutdown did not complete successfully"
       },
       {"ready", false},
-      {"power", state.power},
-      {"servo", state.servo},
-      {"stream", state.stream},
+      {
+        "power",
+        rby1_app_bridge::legacy_component_enabled(state.power)
+      },
+      {
+        "servo",
+        rby1_app_bridge::legacy_component_enabled(state.servo)
+      },
+      {
+        "stream",
+        rby1_app_bridge::legacy_component_enabled(state.stream)
+      },
+      {
+        "components",
+        rby1_app_bridge::components_status_json(state)
+      },
       {"steps", steps}
     };
   }
 
   json set_servo_state(bool enabled)
   {
-    const json result = call_state_service(
+    const json result = command_component_state(
+      rby1_app_bridge::Component::Servo,
       servo_client_,
       "/rby1/robot_servo",
       enabled,
@@ -1000,61 +1303,20 @@ private:
         "message",
         result.value("error", "no message")).c_str());
 
-    if (success)
-    {
-      component_state_.confirm_servo(enabled);
-    }
-
     log_component_state("State after Servo");
     return result;
   }
 
   json set_stream_state(bool enabled)
   {
-    const json result = call_state_service(
+    const json result = command_component_state(
+      rby1_app_bridge::Component::Stream,
       stream_client_,
       "/rby1/stream_control",
       enabled,
       "",
       enabled ? 20.0 : 0.0);
 
-    const bool service_succeeded =
-      result.value("success", false);
-
-    bool confirmed = false;
-    if (service_succeeded)
-    {
-      confirmed = wait_for_stream(enabled, 5s);
-    }
-
-    RCLCPP_INFO(
-      get_logger(),
-      "Stream %s: service=%s confirmed=%s",
-      enabled ? "ON" : "OFF",
-      service_succeeded ? "success" : "failed",
-      confirmed ? "true" : "false");
-
-    if (!service_succeeded)
-    {
-      log_component_state("State after Stream");
-      return result;
-    }
-
-    if (!confirmed)
-    {
-      log_component_state("State after Stream");
-      return {
-        {"success", false},
-        {
-          "error",
-          std::string("Stream state did not become ")
-            + (enabled ? "ON" : "OFF")
-        },
-        {"result", result}
-      };
-    }
-
-    component_state_.confirm_stream(enabled);
     log_component_state("State after Stream");
     return result;
   }
@@ -1088,36 +1350,6 @@ private:
     return false;
   }
 
-  bool wait_for_stream(
-    bool expected,
-    std::chrono::seconds timeout)
-  {
-    const auto deadline =
-      std::chrono::steady_clock::now()
-      + timeout;
-
-    while (
-      std::chrono::steady_clock::now()
-      < deadline)
-    {
-      {
-        std::lock_guard<std::mutex> lock(
-          state_mutex_);
-
-        if (
-          robot_is_connected_unlocked()
-          && stream_enabled_ == expected)
-        {
-          return true;
-        }
-      }
-
-      std::this_thread::sleep_for(100ms);
-    }
-
-    return false;
-  }
-
   json prepare_robot()
   {
     RCLCPP_INFO(get_logger(), "Prepare started");
@@ -1132,16 +1364,33 @@ private:
       RCLCPP_WARN(
         get_logger(),
         "Prepare rejected: power=%s servo=%s stream=%s",
-        initial_components.power ? "true" : "false",
-        initial_components.servo ? "true" : "false",
-        initial_components.stream ? "true" : "false");
+        rby1_app_bridge::to_string(initial_components.power.state),
+        rby1_app_bridge::to_string(initial_components.servo.state),
+        rby1_app_bridge::to_string(initial_components.stream.state));
 
       return {
         {"success", false},
         {"ready", false},
-        {"power", initial_components.power},
-        {"servo", initial_components.servo},
-        {"stream", initial_components.stream},
+        {
+          "power",
+          rby1_app_bridge::legacy_component_enabled(
+            initial_components.power)
+        },
+        {
+          "servo",
+          rby1_app_bridge::legacy_component_enabled(
+            initial_components.servo)
+        },
+        {
+          "stream",
+          rby1_app_bridge::legacy_component_enabled(
+            initial_components.stream)
+        },
+        {
+          "components",
+          rby1_app_bridge::components_status_json(
+            initial_components)
+        },
         {
           "message",
           "Power, Servo and Stream must be enabled before prepare"
@@ -1854,19 +2103,7 @@ private:
 
   json create_status_response()
   {
-    std::lock_guard<std::mutex> lock(
-      state_mutex_);
-
-    const bool connected =
-      robot_is_connected_unlocked();
-
-    if (!connected)
-    {
-      component_state_.reset();
-    }
-
-    const auto components =
-      component_state_.snapshot();
+    check_connection_timeout();
 
     const bool driver_available =
       power_client_->service_is_ready()
@@ -1874,34 +2111,74 @@ private:
       && stream_client_->service_is_ready()
       && cancel_client_->service_is_ready();
 
+    bool connected = false;
+    bool driver_ready = false;
+    bool preparing = false;
+    bool joint_action_busy = false;
+    bool velocity_command_active = false;
+    bool stream_enabled = false;
+    bool collision = false;
+    bool emergency_stop = false;
+    int control_manager_state = 0;
+    double robot_version = 0.0;
+    double desired_linear_x = 0.0;
+    double desired_linear_y = 0.0;
+    double desired_angular_z = 0.0;
+    std::string joint_action_state;
+    std::string fault_message;
+    rby1_app_bridge::ComponentStateSnapshot components;
+
+    {
+      std::lock_guard<std::mutex> lock(state_mutex_);
+      connected = robot_is_connected_unlocked();
+      driver_ready = robot_is_ready_unlocked();
+      preparing = preparing_;
+      joint_action_busy = joint_action_busy_;
+      velocity_command_active = velocity_command_active_;
+      stream_enabled = stream_enabled_;
+      collision = collision_;
+      emergency_stop = emergency_stop_;
+      control_manager_state = control_manager_state_;
+      robot_version = robot_version_;
+      desired_linear_x = desired_linear_x_;
+      desired_linear_y = desired_linear_y_;
+      desired_angular_z = desired_angular_z_;
+      joint_action_state = joint_action_state_;
+      fault_message = control_manager_fault_message_unlocked();
+      components = component_state_.snapshot();
+    }
+
     const bool ready =
       driver_available
-      && component_state_.ready(
-        connected,
-        robot_is_ready_unlocked());
+      && connected
+      && driver_ready
+      && components.all_enabled();
 
     const bool driving =
-      velocity_command_active_
+      velocity_command_active
       && (
-        std::abs(desired_linear_x_) > 1e-6
-        || std::abs(desired_linear_y_) > 1e-6
-        || std::abs(desired_angular_z_) > 1e-6);
+        std::abs(desired_linear_x) > 1e-6
+        || std::abs(desired_linear_y) > 1e-6
+        || std::abs(desired_angular_z) > 1e-6);
 
     const bool fault =
-      control_manager_has_fault_unlocked()
-      || collision_
-      || emergency_stop_;
+      control_manager_state
+        == rby1_msgs::msg::RobotState::STATE_MAJOR_FAULT
+      || control_manager_state
+        == rby1_msgs::msg::RobotState::STATE_MINOR_FAULT
+      || collision
+      || emergency_stop;
 
     const auto description =
       rby1_app_bridge::describe_status({
         driver_available,
         connected,
-        preparing_,
+        preparing,
         fault,
-        joint_action_busy_,
+        joint_action_busy,
         driving,
         ready,
-        control_manager_fault_message_unlocked()
+        fault_message
       });
 
     return {
@@ -1909,33 +2186,46 @@ private:
       {"state", description.state},
       {"connected", connected},
       {"ready", ready},
-      {"power", components.power},
-      {"servo", components.servo},
-      {"stream", components.stream},
+      {
+        "power",
+        rby1_app_bridge::legacy_component_enabled(components.power)
+      },
+      {
+        "servo",
+        rby1_app_bridge::legacy_component_enabled(components.servo)
+      },
+      {
+        "stream",
+        rby1_app_bridge::legacy_component_enabled(components.stream)
+      },
+      {
+        "components",
+        rby1_app_bridge::components_status_json(components)
+      },
       {"message", description.message},
       {
         "control_manager_state",
-        control_manager_state_
+        control_manager_state
       },
-      {"stream_enabled", stream_enabled_},
-      {"collision", collision_},
-      {"emergency_stop", emergency_stop_},
-      {"robot_version", robot_version_},
+      {"stream_enabled", stream_enabled},
+      {"collision", collision},
+      {"emergency_stop", emergency_stop},
+      {"robot_version", robot_version},
       {"ready_pose_saved", ready_pose_.saved()},
       {
         "velocity",
         {
-          {"linear_x", desired_linear_x_},
-          {"linear_y", desired_linear_y_},
-          {"angular_z", desired_angular_z_},
-          {"active", velocity_command_active_}
+          {"linear_x", desired_linear_x},
+          {"linear_y", desired_linear_y},
+          {"angular_z", desired_angular_z},
+          {"active", velocity_command_active}
         }
       },
       {
         "joint_action",
         {
-          {"busy", joint_action_busy_},
-          {"state", joint_action_state_}
+          {"busy", joint_action_busy},
+          {"state", joint_action_state}
         }
       }
     };
@@ -2024,7 +2314,7 @@ private:
       {
         return {
           {"success", false},
-          {"message", "Power must be enabled first"}
+          {"message", "Observed Power state must be known and ON first"}
         };
       }
 
@@ -2035,7 +2325,7 @@ private:
         const auto components =
           component_state_.snapshot();
 
-        if (components.stream)
+        if (components.stream.enabled())
         {
           RCLCPP_INFO(
             get_logger(),
@@ -2076,7 +2366,7 @@ private:
       {
         return {
           {"success", false},
-          {"message", "Power must be enabled first"}
+          {"message", "Observed Power state must be known and ON first"}
         };
       }
 
@@ -2319,7 +2609,7 @@ private:
         try
         {
           const json request =
-            json::parse(
+            rby1_app_bridge::parse_ndjson_request(
               request_text);
 
           response =
@@ -2336,8 +2626,8 @@ private:
         }
 
         const std::string response_text =
-          response.dump()
-          + "\n";
+          rby1_app_bridge::encode_ndjson_response(
+            response);
 
         boost::asio::write(
           socket,
@@ -2457,6 +2747,7 @@ private:
     ready_pose_;
 
   bool received_robot_state_{false};
+  bool connection_loss_reported_{false};
   int control_manager_state_{0};
 
   bool stream_enabled_{false};

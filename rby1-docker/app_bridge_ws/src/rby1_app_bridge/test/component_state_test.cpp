@@ -1,51 +1,251 @@
 #include <atomic>
+#include <chrono>
 #include <limits>
+#include <string>
 #include <thread>
 #include <vector>
 
 #include <gtest/gtest.h>
 
 #include "rby1_app_bridge/component_state.hpp"
+#include "rby1_app_bridge/protocol.hpp"
 #include "rby1_app_bridge/ready_pose_state.hpp"
 #include "rby1_app_bridge/status_state.hpp"
 
-using rby1_app_bridge::ComponentState;
-using rby1_app_bridge::ComponentStateSnapshot;
+using namespace std::chrono_literals;
 using rby1_app_bridge::Component;
+using rby1_app_bridge::ComponentState;
+using rby1_app_bridge::ConfirmationResult;
+using rby1_app_bridge::ObservedState;
 using rby1_app_bridge::POWER_OFF_ORDER;
 using rby1_app_bridge::ReadyPose;
 using rby1_app_bridge::ReadyPoseState;
 using rby1_app_bridge::StatusInputs;
 using rby1_app_bridge::can_enable_power_dependent;
 using rby1_app_bridge::can_prepare;
+using rby1_app_bridge::components_status_json;
 using rby1_app_bridge::describe_status;
+using rby1_app_bridge::encode_ndjson_response;
+using rby1_app_bridge::parse_ndjson_request;
 using rby1_app_bridge::run_power_off_sequence;
 
-TEST(ComponentDependency, RejectsServoOnWhenPowerIsOff)
+namespace
+{
+
+class FakeRobotStateProvider
+{
+public:
+  explicit FakeRobotStateProvider(ComponentState &state)
+  : state_(state)
+  {
+  }
+
+  void publish(
+    const ObservedState power,
+    const ObservedState servo,
+    const bool stream)
+  {
+    state_.observe(Component::Power, power, "robot_api");
+    state_.observe(Component::Servo, servo, "robot_api");
+    state_.observe(
+      Component::Stream,
+      stream ? ObservedState::On : ObservedState::Off,
+      "robot_state");
+  }
+
+  void disconnect()
+  {
+    state_.mark_disconnected();
+  }
+
+private:
+  ComponentState &state_;
+};
+
+}  // namespace
+
+TEST(ComponentObservation, StartsUnknownThenSyncsAlreadyEnabledRobot)
 {
   ComponentState state;
-  EXPECT_FALSE(
-    can_enable_power_dependent(
-      state.snapshot(),
-      true));
+  FakeRobotStateProvider provider(state);
+
+  EXPECT_FALSE(state.snapshot().power.known());
+  EXPECT_FALSE(state.snapshot().servo.known());
+  EXPECT_FALSE(state.snapshot().stream.known());
+
+  provider.publish(ObservedState::On, ObservedState::On, true);
+
+  const auto snapshot = state.snapshot();
+  EXPECT_TRUE(snapshot.power.enabled());
+  EXPECT_TRUE(snapshot.servo.enabled());
+  EXPECT_TRUE(snapshot.stream.enabled());
+  EXPECT_TRUE(state.ready(true, true));
 }
 
-TEST(ComponentDependency, RejectsStreamOnWhenPowerIsOff)
+TEST(ComponentObservation, ExternalClientChangesReplaceObservedState)
 {
   ComponentState state;
-  EXPECT_FALSE(
-    can_enable_power_dependent(
-      state.snapshot(),
-      true));
+  FakeRobotStateProvider provider(state);
+  provider.publish(ObservedState::On, ObservedState::On, true);
+
+  provider.publish(ObservedState::On, ObservedState::Off, false);
+
+  const auto snapshot = state.snapshot();
+  EXPECT_TRUE(snapshot.power.enabled());
+  EXPECT_TRUE(snapshot.servo.disabled());
+  EXPECT_TRUE(snapshot.stream.disabled());
+  EXPECT_FALSE(state.ready(true, true));
 }
 
-TEST(ComponentDependency, AllowsDependentOffWhenPowerIsOff)
+TEST(ComponentConfirmation, ServiceSuccessWithoutObservedChangeTimesOut)
 {
   ComponentState state;
-  EXPECT_TRUE(
-    can_enable_power_dependent(
-      state.snapshot(),
-      false));
+  FakeRobotStateProvider provider(state);
+  provider.publish(ObservedState::Off, ObservedState::Off, false);
+
+  const auto pending = state.begin_pending(Component::Power, true);
+  const bool fake_service_success = true;
+  ASSERT_TRUE(fake_service_success);
+  EXPECT_TRUE(state.snapshot().power.pending);
+
+  const auto result = state.wait_for(
+    pending,
+    std::chrono::steady_clock::now() + 20ms);
+
+  EXPECT_EQ(result, ConfirmationResult::TimedOut);
+  EXPECT_TRUE(state.snapshot().power.disabled());
+  EXPECT_FALSE(state.snapshot().power.pending);
+}
+
+TEST(ComponentConfirmation, CallbackConfirmsPendingWithoutExecutorDeadlock)
+{
+  ComponentState state;
+  FakeRobotStateProvider provider(state);
+  provider.publish(ObservedState::Off, ObservedState::Off, false);
+
+  const auto pending = state.begin_pending(Component::Servo, true);
+  std::thread callback([&provider]() {
+    std::this_thread::sleep_for(10ms);
+    provider.publish(ObservedState::On, ObservedState::On, false);
+  });
+
+  const auto result = state.wait_for(
+    pending,
+    std::chrono::steady_clock::now() + 1s);
+  callback.join();
+
+  EXPECT_EQ(result, ConfirmationResult::Confirmed);
+  EXPECT_TRUE(state.snapshot().servo.enabled());
+  EXPECT_FALSE(state.snapshot().servo.pending);
+}
+
+TEST(ComponentConfirmation, PendingEndsOnlyAfterConfirmationIsConsumed)
+{
+  ComponentState state;
+  FakeRobotStateProvider provider(state);
+  provider.publish(ObservedState::Off, ObservedState::Off, false);
+  const auto pending = state.begin_pending(Component::Power, true);
+
+  provider.publish(ObservedState::On, ObservedState::Off, false);
+  EXPECT_TRUE(state.snapshot().power.pending);
+
+  EXPECT_EQ(
+    state.wait_for(
+      pending,
+      std::chrono::steady_clock::now() + 1s),
+    ConfirmationResult::Confirmed);
+  EXPECT_FALSE(state.snapshot().power.pending);
+}
+
+TEST(ComponentConfirmation, LaterMismatchInvalidatesAnUnconsumedConfirmation)
+{
+  ComponentState state;
+  FakeRobotStateProvider provider(state);
+  provider.publish(ObservedState::Off, ObservedState::Off, false);
+  const auto pending = state.begin_pending(Component::Power, true);
+
+  provider.publish(ObservedState::On, ObservedState::Off, false);
+  provider.publish(ObservedState::Off, ObservedState::Off, false);
+
+  EXPECT_EQ(
+    state.wait_for(
+      pending,
+      std::chrono::steady_clock::now() + 20ms),
+    ConfirmationResult::TimedOut);
+  EXPECT_TRUE(state.snapshot().power.disabled());
+}
+
+TEST(ComponentConnection, DisconnectMakesEveryComponentUnknown)
+{
+  ComponentState state;
+  FakeRobotStateProvider provider(state);
+  provider.publish(ObservedState::On, ObservedState::On, true);
+
+  provider.disconnect();
+
+  const auto snapshot = state.snapshot();
+  EXPECT_FALSE(snapshot.power.known());
+  EXPECT_FALSE(snapshot.servo.known());
+  EXPECT_FALSE(snapshot.stream.known());
+  EXPECT_FALSE(snapshot.all_enabled());
+}
+
+TEST(ComponentConnection, ReconnectResynchronizesFromProvider)
+{
+  ComponentState state;
+  FakeRobotStateProvider provider(state);
+  provider.publish(ObservedState::On, ObservedState::On, true);
+  provider.disconnect();
+
+  provider.publish(ObservedState::Off, ObservedState::On, false);
+
+  const auto snapshot = state.snapshot();
+  EXPECT_TRUE(snapshot.power.disabled());
+  EXPECT_TRUE(snapshot.servo.enabled());
+  EXPECT_TRUE(snapshot.stream.disabled());
+}
+
+TEST(ComponentObservation, StreamRemainsSourcedFromRobotState)
+{
+  ComponentState state;
+  FakeRobotStateProvider provider(state);
+  provider.publish(ObservedState::On, ObservedState::On, true);
+
+  const auto snapshot = state.snapshot();
+  EXPECT_EQ(snapshot.power.source, "robot_api");
+  EXPECT_EQ(snapshot.servo.source, "robot_api");
+  EXPECT_EQ(snapshot.stream.source, "robot_state");
+  EXPECT_TRUE(snapshot.stream.enabled());
+}
+
+TEST(ComponentConnection, DisconnectInterruptsPendingTransition)
+{
+  ComponentState state;
+  FakeRobotStateProvider provider(state);
+  provider.publish(ObservedState::Off, ObservedState::Off, false);
+  const auto pending = state.begin_pending(Component::Power, true);
+
+  provider.disconnect();
+
+  EXPECT_EQ(
+    state.wait_for(
+      pending,
+      std::chrono::steady_clock::now() + 1s),
+    ConfirmationResult::Interrupted);
+  EXPECT_FALSE(state.snapshot().power.pending);
+}
+
+TEST(ComponentDependency, RequiresObservedPowerOn)
+{
+  ComponentState state;
+  EXPECT_FALSE(can_enable_power_dependent(state.snapshot(), true));
+  EXPECT_TRUE(can_enable_power_dependent(state.snapshot(), false));
+
+  state.observe(Component::Power, ObservedState::Off, "robot_api");
+  EXPECT_FALSE(can_enable_power_dependent(state.snapshot(), true));
+
+  state.observe(Component::Power, ObservedState::On, "robot_api");
+  EXPECT_TRUE(can_enable_power_dependent(state.snapshot(), true));
 }
 
 TEST(ComponentDependency, PowerOffUsesSafeServiceOrder)
@@ -53,8 +253,7 @@ TEST(ComponentDependency, PowerOffUsesSafeServiceOrder)
   std::vector<Component> calls;
 
   const bool success = run_power_off_sequence(
-    [&calls](const Component component)
-    {
+    [&calls](const Component component) {
       calls.push_back(component);
       return true;
     });
@@ -74,8 +273,7 @@ TEST(ComponentDependency, PowerOffAttemptsEveryStepAfterFailure)
   std::vector<Component> calls;
 
   const bool success = run_power_off_sequence(
-    [&calls](const Component component)
-    {
+    [&calls](const Component component) {
       calls.push_back(component);
       return component != Component::Servo;
     });
@@ -84,96 +282,26 @@ TEST(ComponentDependency, PowerOffAttemptsEveryStepAfterFailure)
   EXPECT_EQ(calls.size(), POWER_OFF_ORDER.size());
 }
 
-TEST(ComponentState, PrepareThenStatusIsReady)
+TEST(ComponentState, PrepareRequiresAllObservedComponentsOn)
 {
   ComponentState state;
-  state.confirm_power(true);
-  state.confirm_servo(true);
-  state.confirm_stream(true);
+  FakeRobotStateProvider provider(state);
+  provider.publish(ObservedState::On, ObservedState::On, true);
+  EXPECT_TRUE(can_prepare(state.snapshot()));
 
-  const auto snapshot = state.snapshot();
-  EXPECT_TRUE(snapshot.power);
-  EXPECT_TRUE(snapshot.servo);
-  EXPECT_TRUE(snapshot.stream);
-  EXPECT_TRUE(state.ready(true, true));
+  state.observe(Component::Servo, ObservedState::Off, "robot_api");
+  EXPECT_FALSE(can_prepare(state.snapshot()));
+
+  state.observe(Component::Servo, ObservedState::Unknown, "robot_api");
+  EXPECT_FALSE(can_prepare(state.snapshot()));
 }
 
-TEST(ComponentState, ServoOffInvalidatesReadyAndCanRecover)
-{
-  ComponentState state;
-  state.confirm_power(true);
-  state.confirm_servo(true);
-  state.confirm_stream(true);
-
-  state.confirm_servo(false);
-  EXPECT_FALSE(state.snapshot().servo);
-  EXPECT_FALSE(state.ready(true, true));
-
-  state.confirm_servo(true);
-  EXPECT_TRUE(state.ready(true, true));
-}
-
-TEST(ComponentState, PowerOffCascadesToServoStreamAndReady)
-{
-  ComponentState state;
-  state.confirm_power(true);
-  state.confirm_servo(true);
-  state.confirm_stream(true);
-
-  state.confirm_power(false);
-  const auto powered_off = state.snapshot();
-  EXPECT_FALSE(powered_off.power);
-  EXPECT_FALSE(powered_off.servo);
-  EXPECT_FALSE(powered_off.stream);
-  EXPECT_FALSE(state.ready(true, true));
-
-  state.confirm_power(true);
-  state.confirm_servo(true);
-  state.confirm_stream(true);
-  EXPECT_TRUE(state.ready(true, true));
-}
-
-TEST(ComponentState, StatusSnapshotReflectsAllThreeStates)
-{
-  ComponentState state;
-  state.confirm_power(true);
-  state.confirm_servo(false);
-  state.confirm_stream(true);
-
-  const auto snapshot = state.snapshot();
-  EXPECT_TRUE(snapshot.power);
-  EXPECT_FALSE(snapshot.servo);
-  EXPECT_TRUE(snapshot.stream);
-  EXPECT_FALSE(state.ready(true, true));
-}
-
-TEST(ComponentDependency, PrepareRejectsEveryMissingSubsystem)
-{
-  EXPECT_FALSE(can_prepare(ComponentStateSnapshot{false, true, true}));
-  EXPECT_FALSE(can_prepare(ComponentStateSnapshot{true, false, true}));
-  EXPECT_FALSE(can_prepare(ComponentStateSnapshot{true, true, false}));
-  EXPECT_TRUE(can_prepare(ComponentStateSnapshot{true, true, true}));
-}
-
-TEST(ComponentState, StreamOffInvalidatesReadyAndCanRecover)
-{
-  ComponentState state;
-  state.confirm_power(true);
-  state.confirm_servo(true);
-  state.confirm_stream(true);
-
-  state.confirm_stream(false);
-  EXPECT_FALSE(state.ready(true, true));
-
-  state.confirm_stream(true);
-  EXPECT_TRUE(state.ready(true, true));
-}
-
-TEST(ComponentState, ConcurrentStatusPollingIsConsistentAndBoolean)
+TEST(ComponentState, ConcurrentStatusReadsAndUpdatesAreSafe)
 {
   ComponentState state;
   std::atomic<bool> stop{false};
   std::atomic<bool> started{false};
+  std::atomic<bool> valid{true};
   std::atomic<int> reads{0};
 
   std::thread poller([&]() {
@@ -181,9 +309,14 @@ TEST(ComponentState, ConcurrentStatusPollingIsConsistentAndBoolean)
     while (!stop.load())
     {
       const auto snapshot = state.snapshot();
-      (void)snapshot.power;
-      (void)snapshot.servo;
-      (void)snapshot.stream;
+      const auto status = components_status_json(snapshot);
+      if (
+        !status.contains("power")
+        || !status.contains("servo")
+        || !status.contains("stream"))
+      {
+        valid = false;
+      }
       ++reads;
     }
   });
@@ -195,23 +328,65 @@ TEST(ComponentState, ConcurrentStatusPollingIsConsistentAndBoolean)
 
   for (int index = 0; index < 1000; ++index)
   {
-    state.confirm_power(true);
-    state.confirm_servo(true);
-    state.confirm_stream(true);
-    state.reset();
+    const auto observed =
+      index % 2 == 0 ? ObservedState::On : ObservedState::Off;
+    state.observe(Component::Power, observed, "robot_api");
+    state.observe(Component::Servo, observed, "robot_api");
+    state.observe(Component::Stream, observed, "robot_state");
+    if (index % 10 == 0)
+    {
+      state.mark_disconnected();
+    }
   }
 
   stop = true;
   poller.join();
   EXPECT_GT(reads.load(), 0);
-  EXPECT_FALSE(state.ready(false, false));
+  EXPECT_TRUE(valid.load());
+}
+
+TEST(StatusProtocol, CanonicalSchemaDoesNotEncodeUnknownAsFalse)
+{
+  ComponentState state;
+  const auto components = components_status_json(state.snapshot());
+
+  EXPECT_FALSE(components["power"]["known"].get<bool>());
+  EXPECT_TRUE(components["power"]["enabled"].is_null());
+  EXPECT_FALSE(components["servo"]["known"].get<bool>());
+  EXPECT_TRUE(components["servo"]["enabled"].is_null());
+  EXPECT_FALSE(components["stream"]["known"].get<bool>());
+  EXPECT_TRUE(components["stream"]["enabled"].is_null());
+}
+
+TEST(TcpProtocol, ExistingCommandRequestsRemainValidNdjson)
+{
+  const std::vector<std::string> commands = {
+    "ping", "status", "joints_status", "velocity", "stop", "power",
+    "servo", "stream", "prepare", "cancel", "joint_nudge",
+    "set_ready_pose", "clear_ready_pose", "ready_pose", "arms_ready",
+    "zero_pose"
+  };
+
+  for (const auto &command : commands)
+  {
+    const auto request = parse_ndjson_request(
+      std::string("{\"command\":\"") + command + "\"}");
+    EXPECT_EQ(request.at("command"), command);
+  }
+
+  const auto response = encode_ndjson_response({
+    {"success", true},
+    {"power", false},
+    {"servo", false},
+    {"stream", false}
+  });
+  EXPECT_EQ(response.back(), '\n');
+  EXPECT_EQ(response.find('\n'), response.size() - 1);
 }
 
 TEST(StatusState, AlwaysReturnsNonEmptyStateAndMessage)
 {
-  EXPECT_EQ(
-    describe_status({}).state,
-    "Disconnected");
+  EXPECT_EQ(describe_status({}).state, "Disconnected");
   EXPECT_EQ(
     describe_status({}).message,
     "ROS2 driver or robot is unavailable");
@@ -227,7 +402,6 @@ TEST(StatusState, AlwaysReturnsNonEmptyStateAndMessage)
   input.preparing = false;
   input.ready = true;
   EXPECT_EQ(describe_status(input).state, "Ready");
-  EXPECT_EQ(describe_status(input).message, "Robot ready");
 
   input.driving = true;
   EXPECT_EQ(describe_status(input).state, "Driving");

@@ -5,15 +5,25 @@ SHELL ["/bin/bash", "-c"]
 USER root
 
 COPY patches/rby1-ros2-model-m-velocity.patch /tmp/rby1-ros2-model-m-velocity.patch
+COPY patches/rby1-ros2-observed-component-state.patch /tmp/rby1-ros2-observed-component-state.patch
 
+# Hỗ trợ cả image base cũ chưa có patch và image mới đã áp dụng patch.
 RUN cd /opt/rby1_ros2_ws/src/rby1-ros2 \
-    && git apply --check /tmp/rby1-ros2-model-m-velocity.patch \
-    && git apply /tmp/rby1-ros2-model-m-velocity.patch
+    && for patch in \
+         /tmp/rby1-ros2-model-m-velocity.patch \
+         /tmp/rby1-ros2-observed-component-state.patch; do \
+         if git apply --reverse --check "${patch}"; then \
+           echo "Already applied: ${patch}"; \
+         else \
+           git apply --check "${patch}" \
+           && git apply "${patch}"; \
+         fi; \
+       done
 
 RUN source /opt/ros/humble/setup.bash \
     && cd /opt/rby1_ros2_ws \
     && colcon build \
-       --packages-select rby1_driver \
+       --packages-select rby1_msgs rby1_driver \
        --symlink-install \
        --cmake-args -DCMAKE_BUILD_TYPE=Release
 

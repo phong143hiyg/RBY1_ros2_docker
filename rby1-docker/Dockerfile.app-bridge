@@ -17,7 +17,9 @@ COPY app_bridge_ws/src ./src
 RUN bash -lc \
     "source /opt/ros/humble/setup.bash \
      && source /opt/rby1_ros2_ws/install/setup.bash \
-     && colcon build --symlink-install"
+     && colcon build --symlink-install \
+     && colcon test --packages-select rby1_app_bridge \
+     && colcon test-result --verbose"
 
 CMD ["bash", "-lc", \
      "source /opt/ros/humble/setup.bash \

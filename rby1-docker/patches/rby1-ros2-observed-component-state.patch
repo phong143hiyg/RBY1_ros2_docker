@@ -1,0 +1,88 @@
+diff --git a/rby1_driver/src/rby1_ros2_driver.cpp b/rby1_driver/src/rby1_ros2_driver.cpp
+--- a/rby1_driver/src/rby1_ros2_driver.cpp
++++ b/rby1_driver/src/rby1_ros2_driver.cpp
+@@ -1192,6 +1192,64 @@ void RBY1_ROS2_DRIVER<ModelType>::read_joint_state() {
+       robot_state_msg.control_manager_state =
+           static_cast<int32_t>(robot_state_.state);
+ 
++      // Mirror the SDK's official IsPowerOn(".*") semantics while retaining
++      // the SDK's explicit unknown state. This reuses the GetState() result
++      // fetched above, so it does not add another Robot API poll.
++      robot_state_msg.power_state =
++          rby1_msgs::msg::RobotState::COMPONENT_STATE_UNKNOWN;
++      if (!info_.power_infos.empty() &&
++          info_.power_infos.size() == state.power_states.size()) {
++        bool all_on = true;
++        bool has_unknown = false;
++
++        for (size_t i = 0; i < info_.power_infos.size(); ++i) {
++          if (state.power_states[i].state == rb::PowerState::State::kUnknown) {
++            has_unknown = true;
++          } else if (state.power_states[i].state !=
++                     rb::PowerState::State::kPowerOn) {
++            all_on = false;
++          }
++        }
++
++        if (!has_unknown) {
++          robot_state_msg.power_state =
++              all_on ? rby1_msgs::msg::RobotState::COMPONENT_STATE_ON
++                     : rby1_msgs::msg::RobotState::COMPONENT_STATE_OFF;
++        }
++      }
++
++      // Robot::IsServoOn(".*") defines servo ON as every matched joint being
++      // ready with an SDK state age no greater than 100 ms. Preserve that
++      // definition, but report stale SDK joint data as unknown rather than
++      // incorrectly collapsing it to OFF.
++      robot_state_msg.servo_state =
++          rby1_msgs::msg::RobotState::COMPONENT_STATE_UNKNOWN;
++      if (!info_.joint_infos.empty() &&
++          info_.joint_infos.size() == state.joint_states.size()) {
++        bool all_ready = true;
++        bool has_stale_state = false;
++
++        for (size_t i = 0; i < info_.joint_infos.size(); ++i) {
++          const auto &joint = state.joint_states[i];
++          const double state_age =
++              static_cast<double>(joint.time_since_last_update.tv_sec) +
++              static_cast<double>(joint.time_since_last_update.tv_nsec) * 1e-9;
++
++          if (state_age > 0.1) {
++            has_stale_state = true;
++          }
++          if (!joint.is_ready) {
++            all_ready = false;
++          }
++        }
++
++        if (!has_stale_state) {
++          robot_state_msg.servo_state =
++              all_ready ? rby1_msgs::msg::RobotState::COMPONENT_STATE_ON
++                        : rby1_msgs::msg::RobotState::COMPONENT_STATE_OFF;
++        }
++      }
++
+       auto fill_brakes = [&](std::vector<bool> &brake_vec,
+                              const std::vector<unsigned int> &idx_vec) {
+         brake_vec.resize(idx_vec.size());
+diff --git a/rby1_msgs/msg/RobotState.msg b/rby1_msgs/msg/RobotState.msg
+--- a/rby1_msgs/msg/RobotState.msg
++++ b/rby1_msgs/msg/RobotState.msg
+@@ -8,6 +8,16 @@ int32 STATE_MINOR_FAULT = 5
+ 
+ int32 control_manager_state
+ 
++# Observed component state constants. Power and servo are populated from the
++# RBY1 SDK state returned by Robot::GetState(), not from command responses.
++uint8 COMPONENT_STATE_UNKNOWN = 0
++uint8 COMPONENT_STATE_OFF = 1
++uint8 COMPONENT_STATE_ON = 2
++
++# Aggregate state for all robot power devices and all robot joints.
++uint8 power_state
++uint8 servo_state
++
+ # Joint brake engagement status for all components
+ BrakeState brake_state
+ 

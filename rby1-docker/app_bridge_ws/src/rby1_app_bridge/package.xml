@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>rby1_app_bridge</name>
-  <version>0.4.0</version>
+  <version>0.5.0</version>
 
   <description>
     C++ TCP bridge for the RBY1 Windows desktop controller.
@@ -21,6 +21,8 @@
   <depend>sensor_msgs</depend>
   <depend>std_srvs</depend>
   <depend>rby1_msgs</depend>
+  <depend>boost</depend>
+  <depend>nlohmann_json</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
 
