@@ -1,0 +1,2 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites name="rby1_motion_planning.test_planning_launch" tests="2" failures="0" errors="0" time="8.973"><testsuite name="rby1_motion_planning.test_planning_launch.launch_tests" tests="2" failures="0" errors="0" skipped="0" time="8.973"><testcase classname="rby1_motion_planning.PlanningLaunch" name="test_ndjson_scenarios" time="8.973" /><testcase classname="rby1_motion_planning.Shutdown" name="test_launch_shutdown" time="0.0" /></testsuite></testsuites>

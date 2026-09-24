@@ -1,0 +1,27 @@
+# Separate compose project: never inherits the driver/simulator compose file.
+services:
+  planning:
+    image: local/rby1-planning:humble
+    build:
+      context: .
+      dockerfile: Dockerfile.planning
+    environment:
+      ROS_DOMAIN_ID: "83"
+      ROS_LOCALHOST_ONLY: "1"
+      DISPLAY: ${DISPLAY:-}
+      QT_X11_NO_MITSHM: "1"
+    ports:
+      - "127.0.0.1:8082:8082"
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - ./planning_ws/src/rby1_motion_planning/reports:/reports
+    command:
+      - ros2
+      - launch
+      - rby1_motion_planning
+      - planning_test.launch.py
+      - model:=m
+      - moveit_package:=rby1_moveit_m_1_2
+      - contract_bind:=0.0.0.0
+      - report_dir:=/reports
+      - rviz:=${PLANNING_RVIZ:-false}

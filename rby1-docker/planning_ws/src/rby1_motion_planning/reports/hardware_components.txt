@@ -1,0 +1,30 @@
+Hardware Component 1
+	name: RBY1_M_v1_2_ros2_control
+	type: system
+	plugin name: mock_components/GenericSystem
+	state: id=3 label=active
+	command interfaces
+		right_arm_0/position [available] [unclaimed]
+		right_arm_1/position [available] [unclaimed]
+		right_arm_2/position [available] [unclaimed]
+		right_arm_3/position [available] [unclaimed]
+		right_arm_4/position [available] [unclaimed]
+		right_arm_5/position [available] [unclaimed]
+		right_arm_6/position [available] [unclaimed]
+		left_arm_0/position [available] [unclaimed]
+		left_arm_1/position [available] [unclaimed]
+		left_arm_2/position [available] [unclaimed]
+		left_arm_3/position [available] [unclaimed]
+		left_arm_4/position [available] [unclaimed]
+		left_arm_5/position [available] [unclaimed]
+		left_arm_6/position [available] [unclaimed]
+		torso_0/position [available] [unclaimed]
+		torso_1/position [available] [unclaimed]
+		torso_2/position [available] [unclaimed]
+		torso_3/position [available] [unclaimed]
+		torso_4/position [available] [unclaimed]
+		torso_5/position [available] [unclaimed]
+		head_0/position [available] [unclaimed]
+		head_1/position [available] [unclaimed]
+		gripper_finger_r1_joint/position [available] [unclaimed]
+		gripper_finger_l1_joint/position [available] [unclaimed]

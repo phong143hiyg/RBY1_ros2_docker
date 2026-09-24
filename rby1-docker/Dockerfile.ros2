@@ -54,10 +54,10 @@ RUN python3 -m pip install --no-cache-dir "conan>=2.0,<3.0"
 # ============================================================
 # 3. Clone rby1-sdk
 #
-# v0.10.0 là release 0.10.x chính thức.
-# Có thể thay bằng main nếu muốn lấy code mới nhất.
+# v0.10.0 là release 0.10.x chính thức đã kiểm chứng với commit ROS 2 bên dưới.
 # ============================================================
 ARG RBY1_SDK_REF=v0.10.0
+ARG RBY1_SDK_COMMIT=9af8a734b7bef0167545e3d9f0d559276a5b64ee
 
 RUN git clone \
     --branch "${RBY1_SDK_REF}" \
@@ -65,7 +65,8 @@ RUN git clone \
     --recurse-submodules \
     --shallow-submodules \
     https://github.com/RainbowRobotics/rby1-sdk.git \
-    "${RBY1_SDK_PATH}"
+    "${RBY1_SDK_PATH}" && \
+    test "$(git -C "${RBY1_SDK_PATH}" rev-parse HEAD)" = "${RBY1_SDK_COMMIT}"
 
 WORKDIR ${RBY1_SDK_PATH}
 
@@ -106,7 +107,8 @@ RUN mkdir -p "${RBY1_ROS2_WS}/src" && \
         https://github.com/RainbowRobotics/rby1-ros2.git \
         "${RBY1_ROS2_WS}/src/rby1-ros2" && \
     git -C "${RBY1_ROS2_WS}/src/rby1-ros2" checkout \
-        --detach "${RBY1_ROS2_REF}"
+        --detach "${RBY1_ROS2_REF}" && \
+    test "$(git -C "${RBY1_ROS2_WS}/src/rby1-ros2" rev-parse HEAD)" = "${RBY1_ROS2_REF}"
 
 # Log vx/vy/wz tại biên ROS 2 -> SDK để kiểm chứng lệnh SE(2) Model M.
 COPY patches/rby1-ros2-model-m-velocity.patch /tmp/rby1-ros2-model-m-velocity.patch

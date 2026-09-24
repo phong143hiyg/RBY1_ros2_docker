@@ -31,3 +31,5 @@ Thumbs.db
 *.zip
 *.tar
 *.tar.gz
+# New planning test artifacts stay in the repository, not in the runtime image.
+planning_ws/src/rby1_motion_planning/reports/

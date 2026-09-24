@@ -317,3 +317,18 @@ docker compose build rby1-app-bridge
 ## Giấy phép
 
 Package `rby1_app_bridge` khai báo giấy phép MIT. Các thành phần bên thứ ba như ROS 2, `rby1-sdk`, `rby1-ros2` và image simulator tuân theo giấy phép riêng của từng dự án.
+
+
+## Test MoveIt 2 planning/preview độc lập
+
+Package mới [`rby1_motion_planning`](rby1-docker/planning_ws/src/rby1_motion_planning/README.md) có fake launch, scene YAML, C++ worker/validator, service TCP NDJSON và test thực. Dùng compose riêng, ROS domain 83 và GenericSystem; backend `execution_enabled=false`.
+
+```bash
+cd rby1-docker
+docker compose -p rby1-planning -f planning-compose.yml build
+docker compose -p rby1-planning -f planning-compose.yml up
+```
+
+Model M v1.2 ở đây chỉ là minh họa fake. Grasp/pick-place bị chặn rõ ràng bởi cấu hình mimic ngón kẹp không tương thích bounds. Adapter mới công bố contract Qt v1 trên `127.0.0.1:8082`; transport thử nghiệm nội bộ ở 7447 không được publish ra host. Hai file chuẩn của Qt được sao chép nguyên byte vào [`rby1-docker/planning_protocol`](rby1-docker/planning_protocol/protocol-v1.md) và đối chiếu SHA-256 trong test.
+
+Planning launch yêu cầu `ROS_DOMAIN_ID` riêng khác 0 và không gửi command robot. Nếu Qt đang kết nối SDK trực tiếp tới robot, không chạy `docker-compose.yml` (nó khởi động `rby1_driver` và các bridge có thể gửi lệnh). Báo cáo MoveIt trong package là kết quả từ image Docker được chạy ngày 16/09/2026, trước adapter contract hiện tại; môi trường host này cần Docker/ROS trước khi tái chạy build và kiểm tra end to end.

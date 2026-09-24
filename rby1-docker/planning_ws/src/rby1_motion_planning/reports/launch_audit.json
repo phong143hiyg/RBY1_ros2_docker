@@ -1,0 +1,50 @@
+{
+  "model": "m",
+  "moveit_package": "rby1_moveit_m_1_2",
+  "model_id": "bc0b00c22f8e2388e7b5ef5c3e092f273cd5675a6a83d6250596c499256ae7da",
+  "use_fake_hardware": true,
+  "hardware_plugins": [
+    "mock_components/GenericSystem"
+  ],
+  "execution_enabled": false,
+  "move_group_environment": {
+    "LD_PRELOAD": "/opt/ros/humble/lib/libmoveit_move_group_default_capabilities.so"
+  },
+  "shutdown_workaround": "Keep MoveIt 2.5.9 capability code mapped through node callback-group destruction; vendor files unchanged",
+  "ompl_overlay": {
+    "planning_plugin": "ompl_interface/OMPLPlanner",
+    "request_adapters": "default_planner_request_adapters/ResolveConstraintFrames default_planner_request_adapters/FixWorkspaceBounds",
+    "maximum_waypoint_distance": 0.01,
+    "planner_configs": {
+      "RRTConnectkConfigDefault": {
+        "type": "geometric::RRTConnect",
+        "range": 0.1
+      }
+    },
+    "right_arm": {
+      "planner_configs": [
+        "RRTConnectkConfigDefault"
+      ],
+      "longest_valid_segment_fraction": 0.0005
+    }
+  },
+  "vendor_srdf_sha256": "ff96f350f95a69fc08fade2ad4af5a07e1f52935e07774eda124fbd331765ca0",
+  "srdf_overlay_added": [
+    "<end_effector name=\"rby1_right_tool\" parent_link=\"ee_right\" group=\"gripper_r\" parent_group=\"right_arm\"/>"
+  ],
+  "joint_limit_overlay": {
+    "has_acceleration_limits": true,
+    "arm_rad_s2": 1.0,
+    "finger_m_s2": 0.1,
+    "purpose": "illustrative fake-only retiming; not manufacturer limits"
+  },
+  "moveit_controller_manager": "rby1_motion_planning/PlanningOnlyControllerManager",
+  "controllers": [
+    "joint_state_broadcaster"
+  ],
+  "joint_state_owners": [
+    "joint_state_broadcaster"
+  ],
+  "scene_file": "/opt/planning_ws/install/rby1_motion_planning/share/rby1_motion_planning/config/test_scene.yaml",
+  "fake_initial_positions_file": "/opt/planning_ws/install/rby1_motion_planning/share/rby1_motion_planning/config/fake_initial_positions.yaml"
+}

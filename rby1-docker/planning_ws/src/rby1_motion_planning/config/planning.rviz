@@ -1,0 +1,34 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Global Options:
+    Fixed Frame: base
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+    - Class: moveit_rviz_plugin/MotionPlanning
+      Name: MotionPlanning
+      Enabled: true
+      Robot Description: robot_description
+      Planning Scene Topic: /monitored_planning_scene
+      Planned Path:
+        Trajectory Topic: /display_planned_path
+        Loop Animation: true
+      Planning Request:
+        Planning Group: right_arm
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Task targets
+      Enabled: true
+      Marker Topic:
+        Value: /rby1_planning/markers
+        Durability Policy: Transient Local
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 2.7
+      Pitch: 0.3
+      Yaw: 0.9
+      Focal Point: {X: 0.3, Y: 0.0, Z: 0.8}

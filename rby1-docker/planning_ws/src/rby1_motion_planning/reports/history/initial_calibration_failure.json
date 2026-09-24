@@ -1,0 +1,338 @@
+{
+  "results": [
+    {
+      "name": "baseline_calibration",
+      "status": "FAIL",
+      "error": "{'elapsed_s': 0.003178384, 'error': {'code': 'SCENE_REJECTED', 'message': 'move_group rejected planning scene'}, 'execution_enabled': False, 'id': 'cli-3', 'ok': False, 'type': 'response', 'v': 1}",
+      "elapsed_s": 0.009195434999583085
+    },
+    {
+      "name": "dependent_scenarios",
+      "status": "SKIP",
+      "reason": "Baseline calibration failed; no fake successful trajectory generated",
+      "elapsed_s": 0
+    }
+  ],
+  "artifacts": {
+    "capabilities": {
+      "continuous_collision_guarantee": false,
+      "execution_enabled": false,
+      "gripper_closed_candidate": {
+        "gripper_finger_r1_joint": 0.0
+      },
+      "gripper_group": "gripper_r",
+      "gripper_open_candidate": {
+        "gripper_finger_r1_joint": -0.04
+      },
+      "gripper_states_verified": false,
+      "groups": [
+        "body",
+        "both_arms",
+        "gripper_l",
+        "gripper_r",
+        "head",
+        "left_arm",
+        "right_arm",
+        "torso"
+      ],
+      "joint_bounds": {
+        "gripper_finger_l1_joint": {
+          "acceleration_bounded": true,
+          "max": 0.0,
+          "max_acceleration": 0.1,
+          "max_velocity": 0.05,
+          "min": -0.05,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "gripper_finger_l2_joint": {
+          "acceleration_bounded": true,
+          "max": 0.05,
+          "max_acceleration": 0.1,
+          "max_velocity": 0.05,
+          "min": 0.0,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "gripper_finger_r1_joint": {
+          "acceleration_bounded": true,
+          "max": 0.0,
+          "max_acceleration": 0.1,
+          "max_velocity": 0.05,
+          "min": -0.05,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "gripper_finger_r2_joint": {
+          "acceleration_bounded": true,
+          "max": 0.05,
+          "max_acceleration": 0.1,
+          "max_velocity": 0.05,
+          "min": 0.0,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "head_0": {
+          "acceleration_bounded": true,
+          "max": 1.57,
+          "max_acceleration": 1.0,
+          "max_velocity": 3.14,
+          "min": -1.57,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "head_1": {
+          "acceleration_bounded": true,
+          "max": 1.57,
+          "max_acceleration": 1.0,
+          "max_velocity": 3.14,
+          "min": -1.57,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "left_arm_0": {
+          "acceleration_bounded": true,
+          "max": 3.141592654,
+          "max_acceleration": 1.0,
+          "max_velocity": 3.141592654,
+          "min": -3.141592654,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "left_arm_1": {
+          "acceleration_bounded": true,
+          "max": 3.141592654,
+          "max_acceleration": 1.0,
+          "max_velocity": 3.141592654,
+          "min": -0.017453293,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "left_arm_2": {
+          "acceleration_bounded": true,
+          "max": 3.141592654,
+          "max_acceleration": 1.0,
+          "max_velocity": 3.141592654,
+          "min": -3.141592654,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "left_arm_3": {
+          "acceleration_bounded": true,
+          "max": 0.017453293,
+          "max_acceleration": 1.0,
+          "max_velocity": 3.141592654,
+          "min": -2.617993878,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "left_arm_4": {
+          "acceleration_bounded": true,
+          "max": 3.141592654,
+          "max_acceleration": 1.0,
+          "max_velocity": 6.283185308,
+          "min": -3.141592654,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "left_arm_5": {
+          "acceleration_bounded": true,
+          "max": 1.919862177,
+          "max_acceleration": 1.0,
+          "max_velocity": 6.283185308,
+          "min": -1.570796327,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "left_arm_6": {
+          "acceleration_bounded": true,
+          "max": 2.70526034,
+          "max_acceleration": 1.0,
+          "max_velocity": 2.094395102,
+          "min": -2.70526034,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "right_arm_0": {
+          "acceleration_bounded": true,
+          "max": 3.141592654,
+          "max_acceleration": 1.0,
+          "max_velocity": 3.141592654,
+          "min": -3.141592654,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "right_arm_1": {
+          "acceleration_bounded": true,
+          "max": 0.017453293,
+          "max_acceleration": 1.0,
+          "max_velocity": 3.141592654,
+          "min": -3.141592654,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "right_arm_2": {
+          "acceleration_bounded": true,
+          "max": 3.141592654,
+          "max_acceleration": 1.0,
+          "max_velocity": 3.141592654,
+          "min": -3.141592654,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "right_arm_3": {
+          "acceleration_bounded": true,
+          "max": 0.017453293,
+          "max_acceleration": 1.0,
+          "max_velocity": 3.141592654,
+          "min": -2.617993878,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "right_arm_4": {
+          "acceleration_bounded": true,
+          "max": 3.141592654,
+          "max_acceleration": 1.0,
+          "max_velocity": 6.283185308,
+          "min": -3.141592654,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "right_arm_5": {
+          "acceleration_bounded": true,
+          "max": 1.919862177,
+          "max_acceleration": 1.0,
+          "max_velocity": 6.283185308,
+          "min": -1.570796327,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "right_arm_6": {
+          "acceleration_bounded": true,
+          "max": 2.70526034,
+          "max_acceleration": 1.0,
+          "max_velocity": 2.094395102,
+          "min": -2.70526034,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "torso_0": {
+          "acceleration_bounded": true,
+          "max": 0.261799388,
+          "max_acceleration": 1.0,
+          "max_velocity": 2.0943951,
+          "min": -0.261799388,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "torso_1": {
+          "acceleration_bounded": true,
+          "max": 1.570796327,
+          "max_acceleration": 1.0,
+          "max_velocity": 2.0943951,
+          "min": -0.523598776,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "torso_2": {
+          "acceleration_bounded": true,
+          "max": 1.570796327,
+          "max_acceleration": 1.0,
+          "max_velocity": 2.0943951,
+          "min": -2.617993878,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "torso_3": {
+          "acceleration_bounded": true,
+          "max": 1.570796327,
+          "max_acceleration": 1.0,
+          "max_velocity": 3.141592654,
+          "min": -0.785398163,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "torso_4": {
+          "acceleration_bounded": true,
+          "max": 0.523598776,
+          "max_acceleration": 1.0,
+          "max_velocity": 3.141592654,
+          "min": -0.523598776,
+          "position_bounded": true,
+          "velocity_bounded": true
+        },
+        "torso_5": {
+          "acceleration_bounded": true,
+          "max": 2.35619449,
+          "max_acceleration": 1.0,
+          "max_velocity": 3.141592654,
+          "min": -2.35619449,
+          "position_bounded": true,
+          "velocity_bounded": true
+        }
+      },
+      "model_id": "bc0b00c22f8e2388e7b5ef5c3e092f273cd5675a6a83d6250596c499256ae7da",
+      "mtc_available": false,
+      "pick_place_errors": [
+        "MTC_NOT_INSTALLED",
+        "MIMIC_BOUNDS_CONFLICT:gripper_finger_l2_joint",
+        "MIMIC_BOUNDS_CONFLICT:gripper_finger_r2_joint"
+      ],
+      "plan_pick_place": false,
+      "plan_to_pose": true,
+      "planning_frame": "base",
+      "protocol_schema": "provisional-v1; source specification missing",
+      "seed_supported": false,
+      "tcp": "ee_right",
+      "touch_links": [
+        "gripper_finger_r1",
+        "gripper_finger_r2"
+      ],
+      "validation_resolution": 0.02
+    },
+    "start": {
+      "frame": "base",
+      "state": {
+        "gripper_finger_l1_joint": 0.0,
+        "gripper_finger_l2_joint": 0.0,
+        "gripper_finger_r1_joint": 0.0,
+        "gripper_finger_r2_joint": 0.0,
+        "head_0": 0.0,
+        "head_1": 0.0,
+        "left_arm_0": 0.0,
+        "left_arm_1": 0.0,
+        "left_arm_2": 0.0,
+        "left_arm_3": 0.0,
+        "left_arm_4": 0.0,
+        "left_arm_5": 0.0,
+        "left_arm_6": 0.0,
+        "right_arm_0": 0.0,
+        "right_arm_1": -0.3,
+        "right_arm_2": 0.0,
+        "right_arm_3": -1.0,
+        "right_arm_4": 0.0,
+        "right_arm_5": 1.0,
+        "right_arm_6": 0.0,
+        "torso_0": 0.0,
+        "torso_1": 0.0,
+        "torso_2": 0.0,
+        "torso_3": 0.0,
+        "torso_4": 0.0,
+        "torso_5": 0.0
+      },
+      "tcp_pose": {
+        "orientation": [
+          -0.14943813247359922,
+          -1.4035390109491176e-17,
+          7.017695054745588e-18,
+          0.9887710779360422
+        ],
+        "position": [
+          0.2296672006289092,
+          -0.3874130809247293,
+          0.8447990216600813
+        ]
+      }
+    }
+  }
+}

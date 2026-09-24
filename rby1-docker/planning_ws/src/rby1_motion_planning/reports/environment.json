@@ -1,0 +1,584 @@
+{
+  "captured_utc": "2026-09-16T18:30:30.301143+00:00",
+  "host_ros": "not installed; tests run in isolated Docker container",
+  "ROS_DISTRO": "humble",
+  "ROS_DOMAIN_ID": "84",
+  "ROS_LOCALHOST_ONLY": "1",
+  "DISPLAY": null,
+  "sdk_commit": {
+    "exit_code": 0,
+    "stdout": "9af8a734b7bef0167545e3d9f0d559276a5b64ee",
+    "stderr": ""
+  },
+  "vendor_commit": {
+    "exit_code": 0,
+    "stdout": "2493c8dd62dc835d5f3142d9d49ca7a8f8959f1b",
+    "stderr": ""
+  },
+  "vendor_existing_changed_files": {
+    "exit_code": 0,
+    "stdout": "rby1_driver/src/rby1_ros2_driver.cpp\nrby1_msgs/msg/RobotState.msg",
+    "stderr": ""
+  },
+  "debian_versions": {
+    "exit_code": 0,
+    "stdout": "libyaml-cpp-dev\t0.7.0+dfsg-8build1\nnlohmann-json3-dev\t3.10.5-2\npython3-pytest\t6.2.5-1ubuntu2\nros-humble-moveit\t2.5.9-1jammy.20260804.232923\nros-humble-moveit-common\t2.5.9-1jammy.20260304.202206\nros-humble-moveit-configs-utils\t2.5.9-1jammy.20260724.030557\nros-humble-moveit-core\t2.5.9-1jammy.20260804.210148\nros-humble-moveit-kinematics\t2.5.9-1jammy.20260804.220521\nros-humble-moveit-msgs\t2.2.1-1jammy.20260718.020254\nros-humble-moveit-planners\t2.5.9-1jammy.20260804.232312\nros-humble-moveit-planners-chomp\t2.5.9-1jammy.20260804.214711\nros-humble-moveit-planners-ompl\t2.5.9-1jammy.20260804.221730\nros-humble-moveit-plugins\t2.5.9-1jammy.20260804.214612\nros-humble-moveit-ros\t2.5.9-1jammy.20260804.230146\nros-humble-moveit-ros-benchmarks\t2.5.9-1jammy.20260804.221951\nros-humble-moveit-ros-move-group\t2.5.9-1jammy.20260804.221133\nros-humble-moveit-ros-occupancy-map-monitor\t2.5.9-1jammy.20260804.214555\nros-humble-moveit-ros-planning\t2.5.9-1jammy.20260804.214756\nros-humble-moveit-ros-planning-interface\t2.5.9-1jammy.20260804.223930\nros-humble-moveit-ros-robot-interaction\t2.5.9-1jammy.20260804.221030\nros-humble-moveit-ros-visualization\t2.5.9-1jammy.20260804.224214\nros-humble-moveit-ros-warehouse\t2.5.9-1jammy.20260804.221154\nros-humble-moveit-setup-app-plugins\t2.5.9-1jammy.20260804.231103\nros-humble-moveit-setup-assistant\t2.5.9-1jammy.20260804.232250\nros-humble-moveit-setup-controllers\t2.5.9-1jammy.20260804.231103\nros-humble-moveit-setup-core-plugins\t2.5.9-1jammy.20260804.231105\nros-humble-moveit-setup-framework\t2.5.9-1jammy.20260804.230816\nros-humble-moveit-setup-srdf-plugins\t2.5.9-1jammy.20260804.231103\nros-humble-moveit-simple-controller-manager\t2.5.9-1jammy.20260804.214143\nros-humble-moveit-visual-tools\t4.2.0-1jammy.20260804.224353\nros-humble-ros2-control\t2.54.0-1jammy.20260804.213423\nros-humble-ros2-controllers\t2.53.3-1jammy.20260804.212633",
+    "stderr": ""
+  },
+  "mtc": {
+    "prefix": "/opt/mtc_ws/install/moveit_task_constructor_core",
+    "commit": {
+      "exit_code": 0,
+      "stdout": "756634951326ae17ae099882f7110c6f1d0a98c0",
+      "stderr": ""
+    }
+  },
+  "model": "RBY1_M_v1_2",
+  "model_selection": "fake demonstration only; physical model unknown",
+  "urdf": "/opt/rby1_ros2_ws/install/rby1_description/share/rby1_description/urdf/rby1m/model_v1_2.urdf",
+  "srdf": "/opt/rby1_ros2_ws/install/rby1_moveit_m_1_2/share/rby1_moveit_m_1_2/config/RBY1_M_v1_2.srdf",
+  "kinematics": {
+    "left_arm": {
+      "kinematics_solver": "kdl_kinematics_plugin/KDLKinematicsPlugin",
+      "kinematics_solver_search_resolution": 0.005,
+      "kinematics_solver_timeout": 0.005
+    },
+    "right_arm": {
+      "kinematics_solver": "kdl_kinematics_plugin/KDLKinematicsPlugin",
+      "kinematics_solver_search_resolution": 0.005,
+      "kinematics_solver_timeout": 0.005
+    },
+    "torso": {
+      "kinematics_solver": "kdl_kinematics_plugin/KDLKinematicsPlugin",
+      "kinematics_solver_search_resolution": 0.005,
+      "kinematics_solver_timeout": 0.005
+    }
+  },
+  "vendor_joint_limits": {
+    "default_velocity_scaling_factor": 0.1,
+    "default_acceleration_scaling_factor": 0.1,
+    "joint_limits": {
+      "gripper_finger_l1_joint": {
+        "has_velocity_limits": true,
+        "max_velocity": 0.05,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "gripper_finger_l2_joint": {
+        "has_velocity_limits": true,
+        "max_velocity": 0.05,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "gripper_finger_r1_joint": {
+        "has_velocity_limits": true,
+        "max_velocity": 0.05,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "gripper_finger_r2_joint": {
+        "has_velocity_limits": true,
+        "max_velocity": 0.05,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "head_0": {
+        "has_velocity_limits": true,
+        "max_velocity": 3.14,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "head_1": {
+        "has_velocity_limits": true,
+        "max_velocity": 3.14,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "left_arm_0": {
+        "has_velocity_limits": true,
+        "max_velocity": 3.141592654,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "left_arm_1": {
+        "has_velocity_limits": true,
+        "max_velocity": 3.141592654,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "left_arm_2": {
+        "has_velocity_limits": true,
+        "max_velocity": 3.141592654,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "left_arm_3": {
+        "has_velocity_limits": true,
+        "max_velocity": 3.141592654,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "left_arm_4": {
+        "has_velocity_limits": true,
+        "max_velocity": 6.283185308,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "left_arm_5": {
+        "has_velocity_limits": true,
+        "max_velocity": 6.283185308,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "left_arm_6": {
+        "has_velocity_limits": true,
+        "max_velocity": 2.094395102,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "right_arm_0": {
+        "has_velocity_limits": true,
+        "max_velocity": 3.141592654,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "right_arm_1": {
+        "has_velocity_limits": true,
+        "max_velocity": 3.141592654,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "right_arm_2": {
+        "has_velocity_limits": true,
+        "max_velocity": 3.141592654,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "right_arm_3": {
+        "has_velocity_limits": true,
+        "max_velocity": 3.141592654,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "right_arm_4": {
+        "has_velocity_limits": true,
+        "max_velocity": 6.283185308,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "right_arm_5": {
+        "has_velocity_limits": true,
+        "max_velocity": 6.283185308,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "right_arm_6": {
+        "has_velocity_limits": true,
+        "max_velocity": 2.094395102,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "torso_0": {
+        "has_velocity_limits": true,
+        "max_velocity": 2.0943951,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "torso_1": {
+        "has_velocity_limits": true,
+        "max_velocity": 2.0943951,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "torso_2": {
+        "has_velocity_limits": true,
+        "max_velocity": 2.0943951,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "torso_3": {
+        "has_velocity_limits": true,
+        "max_velocity": 3.141592654,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "torso_4": {
+        "has_velocity_limits": true,
+        "max_velocity": 3.141592654,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      },
+      "torso_5": {
+        "has_velocity_limits": true,
+        "max_velocity": 3.141592654,
+        "has_acceleration_limits": false,
+        "max_acceleration": 0
+      }
+    }
+  },
+  "vendor_controllers": {
+    "controller_manager": {
+      "ros__parameters": {
+        "update_rate": 100,
+        "right_arm_controller": {
+          "type": "joint_trajectory_controller/JointTrajectoryController"
+        },
+        "left_arm_controller": {
+          "type": "joint_trajectory_controller/JointTrajectoryController"
+        },
+        "both_arms_controller": {
+          "type": "joint_trajectory_controller/JointTrajectoryController"
+        },
+        "torso_controller": {
+          "type": "joint_trajectory_controller/JointTrajectoryController"
+        },
+        "head_controller": {
+          "type": "joint_trajectory_controller/JointTrajectoryController"
+        },
+        "body_controller": {
+          "type": "joint_trajectory_controller/JointTrajectoryController"
+        },
+        "gripper_r_controller": {
+          "type": "position_controllers/GripperActionController"
+        },
+        "gripper_l_controller": {
+          "type": "position_controllers/GripperActionController"
+        },
+        "joint_state_broadcaster": {
+          "type": "joint_state_broadcaster/JointStateBroadcaster"
+        }
+      }
+    },
+    "right_arm_controller": {
+      "ros__parameters": {
+        "joints": [
+          "right_arm_0",
+          "right_arm_1",
+          "right_arm_2",
+          "right_arm_3",
+          "right_arm_4",
+          "right_arm_5",
+          "right_arm_6"
+        ],
+        "command_interfaces": [
+          "position"
+        ],
+        "state_interfaces": [
+          "position"
+        ]
+      }
+    },
+    "left_arm_controller": {
+      "ros__parameters": {
+        "joints": [
+          "left_arm_0",
+          "left_arm_1",
+          "left_arm_2",
+          "left_arm_3",
+          "left_arm_4",
+          "left_arm_5",
+          "left_arm_6"
+        ],
+        "command_interfaces": [
+          "position"
+        ],
+        "state_interfaces": [
+          "position"
+        ]
+      }
+    },
+    "both_arms_controller": {
+      "ros__parameters": {
+        "joints": [
+          "left_arm_0",
+          "left_arm_1",
+          "left_arm_2",
+          "left_arm_3",
+          "left_arm_4",
+          "left_arm_5",
+          "left_arm_6",
+          "right_arm_0",
+          "right_arm_1",
+          "right_arm_2",
+          "right_arm_3",
+          "right_arm_4",
+          "right_arm_5",
+          "right_arm_6"
+        ],
+        "command_interfaces": [
+          "position"
+        ],
+        "state_interfaces": [
+          "position"
+        ]
+      }
+    },
+    "torso_controller": {
+      "ros__parameters": {
+        "joints": [
+          "torso_0",
+          "torso_1",
+          "torso_2",
+          "torso_3",
+          "torso_4",
+          "torso_5"
+        ],
+        "command_interfaces": [
+          "position"
+        ],
+        "state_interfaces": [
+          "position"
+        ]
+      }
+    },
+    "head_controller": {
+      "ros__parameters": {
+        "joints": [
+          "head_0",
+          "head_1"
+        ],
+        "command_interfaces": [
+          "position"
+        ],
+        "state_interfaces": [
+          "position"
+        ]
+      }
+    },
+    "body_controller": {
+      "ros__parameters": {
+        "joints": [
+          "torso_0",
+          "torso_1",
+          "torso_2",
+          "torso_3",
+          "torso_4",
+          "torso_5",
+          "head_0",
+          "head_1",
+          "left_arm_0",
+          "left_arm_1",
+          "left_arm_2",
+          "left_arm_3",
+          "left_arm_4",
+          "left_arm_5",
+          "left_arm_6",
+          "right_arm_0",
+          "right_arm_1",
+          "right_arm_2",
+          "right_arm_3",
+          "right_arm_4",
+          "right_arm_5",
+          "right_arm_6"
+        ],
+        "command_interfaces": [
+          "position"
+        ],
+        "state_interfaces": [
+          "position"
+        ]
+      }
+    },
+    "gripper_r_controller": {
+      "ros__parameters": {
+        "joint": "gripper_finger_r1_joint"
+      }
+    },
+    "gripper_l_controller": {
+      "ros__parameters": {
+        "joint": "gripper_finger_l1_joint"
+      }
+    }
+  },
+  "vendor_moveit_controllers": {
+    "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
+    "moveit_simple_controller_manager": {
+      "controller_names": [
+        "right_arm_controller",
+        "left_arm_controller",
+        "torso_controller",
+        "head_controller",
+        "gripper_r_controller",
+        "gripper_l_controller"
+      ],
+      "right_arm_controller": {
+        "type": "FollowJointTrajectory",
+        "joints": [
+          "right_arm_0",
+          "right_arm_1",
+          "right_arm_2",
+          "right_arm_3",
+          "right_arm_4",
+          "right_arm_5",
+          "right_arm_6"
+        ],
+        "action_ns": "follow_joint_trajectory"
+      },
+      "left_arm_controller": {
+        "type": "FollowJointTrajectory",
+        "joints": [
+          "left_arm_0",
+          "left_arm_1",
+          "left_arm_2",
+          "left_arm_3",
+          "left_arm_4",
+          "left_arm_5",
+          "left_arm_6"
+        ],
+        "action_ns": "follow_joint_trajectory"
+      },
+      "torso_controller": {
+        "type": "FollowJointTrajectory",
+        "joints": [
+          "torso_0",
+          "torso_1",
+          "torso_2",
+          "torso_3",
+          "torso_4",
+          "torso_5"
+        ],
+        "action_ns": "follow_joint_trajectory"
+      },
+      "head_controller": {
+        "type": "FollowJointTrajectory",
+        "joints": [
+          "head_0",
+          "head_1"
+        ],
+        "action_ns": "follow_joint_trajectory"
+      },
+      "both_arms_controller": {
+        "type": "FollowJointTrajectory",
+        "joints": [
+          "left_arm_0",
+          "left_arm_1",
+          "left_arm_2",
+          "left_arm_3",
+          "left_arm_4",
+          "left_arm_5",
+          "left_arm_6",
+          "right_arm_0",
+          "right_arm_1",
+          "right_arm_2",
+          "right_arm_3",
+          "right_arm_4",
+          "right_arm_5",
+          "right_arm_6"
+        ],
+        "action_ns": "follow_joint_trajectory"
+      },
+      "body_controller": {
+        "type": "FollowJointTrajectory",
+        "joints": [
+          "torso_0",
+          "torso_1",
+          "torso_2",
+          "torso_3",
+          "torso_4",
+          "torso_5",
+          "head_0",
+          "head_1",
+          "left_arm_0",
+          "left_arm_1",
+          "left_arm_2",
+          "left_arm_3",
+          "left_arm_4",
+          "left_arm_5",
+          "left_arm_6",
+          "right_arm_0",
+          "right_arm_1",
+          "right_arm_2",
+          "right_arm_3",
+          "right_arm_4",
+          "right_arm_5",
+          "right_arm_6"
+        ],
+        "action_ns": "follow_joint_trajectory"
+      },
+      "gripper_r_controller": {
+        "type": "GripperCommand",
+        "joints": [
+          "gripper_finger_r1_joint"
+        ],
+        "action_ns": "gripper_cmd"
+      },
+      "gripper_l_controller": {
+        "type": "GripperCommand",
+        "joints": [
+          "gripper_finger_l1_joint"
+        ],
+        "action_ns": "gripper_cmd"
+      }
+    },
+    "trajectory_execution": {
+      "allowed_start_tolerance": 0.03
+    }
+  },
+  "gripper_urdf": {
+    "gripper_right_joint": {
+      "type": "fixed",
+      "limit": null,
+      "mimic": null
+    },
+    "gripper_finger_r1_joint": {
+      "type": "prismatic",
+      "limit": {
+        "effort": "1000",
+        "velocity": "0.05",
+        "lower": "-0.05",
+        "upper": "0"
+      },
+      "mimic": null
+    },
+    "gripper_finger_r2_joint": {
+      "type": "prismatic",
+      "limit": {
+        "effort": "1000",
+        "velocity": "0.05",
+        "lower": "0",
+        "upper": "0.05"
+      },
+      "mimic": {
+        "joint": "gripper_finger_r1_joint",
+        "multiplier": "1.0",
+        "offset": "0.0"
+      }
+    },
+    "gripper_left_joint": {
+      "type": "fixed",
+      "limit": null,
+      "mimic": null
+    },
+    "gripper_finger_l1_joint": {
+      "type": "prismatic",
+      "limit": {
+        "effort": "1000",
+        "velocity": "0.05",
+        "lower": "-0.05",
+        "upper": "0"
+      },
+      "mimic": null
+    },
+    "gripper_finger_l2_joint": {
+      "type": "prismatic",
+      "limit": {
+        "effort": "1000",
+        "velocity": "0.05",
+        "lower": "0",
+        "upper": "0.05"
+      },
+      "mimic": {
+        "joint": "gripper_finger_l1_joint",
+        "multiplier": "1.0",
+        "offset": "0.0"
+      }
+    }
+  },
+  "specification": {
+    "attachment_read": true,
+    "prompts-test-moveit2-rby1.md_found": false,
+    "protocol_common_fixture_available": false
+  },
+  "AGENTS": "No applicable AGENTS.md found in repository or ancestor directories",
+  "execution_enabled": false
+}

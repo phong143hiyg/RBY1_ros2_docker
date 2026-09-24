@@ -1,0 +1,50 @@
+command interfaces
+	gripper_finger_l1_joint/position [available] [unclaimed]
+	gripper_finger_r1_joint/position [available] [unclaimed]
+	head_0/position [available] [unclaimed]
+	head_1/position [available] [unclaimed]
+	left_arm_0/position [available] [unclaimed]
+	left_arm_1/position [available] [unclaimed]
+	left_arm_2/position [available] [unclaimed]
+	left_arm_3/position [available] [unclaimed]
+	left_arm_4/position [available] [unclaimed]
+	left_arm_5/position [available] [unclaimed]
+	left_arm_6/position [available] [unclaimed]
+	right_arm_0/position [available] [unclaimed]
+	right_arm_1/position [available] [unclaimed]
+	right_arm_2/position [available] [unclaimed]
+	right_arm_3/position [available] [unclaimed]
+	right_arm_4/position [available] [unclaimed]
+	right_arm_5/position [available] [unclaimed]
+	right_arm_6/position [available] [unclaimed]
+	torso_0/position [available] [unclaimed]
+	torso_1/position [available] [unclaimed]
+	torso_2/position [available] [unclaimed]
+	torso_3/position [available] [unclaimed]
+	torso_4/position [available] [unclaimed]
+	torso_5/position [available] [unclaimed]
+state interfaces
+	gripper_finger_l1_joint/position
+	gripper_finger_r1_joint/position
+	head_0/position
+	head_1/position
+	left_arm_0/position
+	left_arm_1/position
+	left_arm_2/position
+	left_arm_3/position
+	left_arm_4/position
+	left_arm_5/position
+	left_arm_6/position
+	right_arm_0/position
+	right_arm_1/position
+	right_arm_2/position
+	right_arm_3/position
+	right_arm_4/position
+	right_arm_5/position
+	right_arm_6/position
+	torso_0/position
+	torso_1/position
+	torso_2/position
+	torso_3/position
+	torso_4/position
+	torso_5/position

@@ -1,0 +1,5 @@
+<library path="planning_only_controller_manager">
+  <class name="rby1_motion_planning/PlanningOnlyControllerManager" type="rby1_motion_planning::PlanningOnlyControllerManager" base_class_type="moveit_controller_manager::MoveItControllerManager">
+    <description>Planning-only manager: no command controllers, handles or action clients.</description>
+  </class>
+</library>

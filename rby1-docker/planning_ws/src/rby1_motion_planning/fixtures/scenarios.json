@@ -1,0 +1,110 @@
+{
+  "model": "RBY1_M_v1_2 fake demonstration only",
+  "goal_offsets": [
+    [
+      0.25,
+      0.0,
+      0.15
+    ],
+    [
+      0.3,
+      0.0,
+      0.2
+    ],
+    [
+      0.2,
+      -0.2,
+      0.15
+    ],
+    [
+      0.15,
+      -0.15,
+      0.2
+    ],
+    [
+      0.1,
+      0.0,
+      0.15
+    ],
+    [
+      0.0,
+      -0.15,
+      0.15
+    ]
+  ],
+  "obstacle_sizes": [
+    0.04,
+    0.06,
+    0.08
+  ],
+  "unreachable_pose": {
+    "position": [
+      9,
+      9,
+      9
+    ],
+    "orientation": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "invalid_start_state": {
+    "right_arm_0": 100.0
+  },
+  "missing_frame": "deliberately_missing_tf_frame",
+  "pick_place": {
+    "frame": "base",
+    "pick_tcp": {
+      "position": [
+        0.65,
+        -0.3,
+        0.64
+      ],
+      "orientation": [
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    "place_object": {
+      "position": [
+        0.7,
+        -0.1,
+        0.56
+      ],
+      "orientation": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "support_surface": "table",
+    "deadline_s": 30
+  },
+  "virtual_payload": {
+    "id": "diagnostic_payload",
+    "type": "box",
+    "dimensions": [
+      0.08,
+      0.4,
+      0.08
+    ],
+    "pose": {
+      "position": [
+        0,
+        0,
+        -0.18
+      ],
+      "orientation": [
+        0,
+        0,
+        0,
+        1
+      ]
+    }
+  }
+}

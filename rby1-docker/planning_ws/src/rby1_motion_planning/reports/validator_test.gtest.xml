@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="5" failures="0" disabled="0" errors="0" time="0.002" timestamp="2026-09-16T18:27:57" name="AllTests">
+  <testsuite name="Validator" tests="5" failures="0" disabled="0" errors="0" time="0.002" timestamp="2026-09-16T18:27:57">
+    <testcase name="InterpolationDetectsObstacleBetweenWaypoints" status="run" result="completed" time="0.001" timestamp="2026-09-16T18:27:57" classname="rby1_motion_planning.Validator" />
+    <testcase name="AttachedObjectBlocksBareHandPassage" status="run" result="completed" time="0" timestamp="2026-09-16T18:27:57" classname="rby1_motion_planning.Validator" />
+    <testcase name="BoundsTimeVelocityAndStageContinuity" status="run" result="completed" time="0.001" timestamp="2026-09-16T18:27:57" classname="rby1_motion_planning.Validator" />
+    <testcase name="DetachUsesFinalStateAndKeepsLiveSceneUnchanged" status="run" result="completed" time="0" timestamp="2026-09-16T18:27:57" classname="rby1_motion_planning.Validator" />
+    <testcase name="AccelerationFiniteDifference" status="run" result="completed" time="0" timestamp="2026-09-16T18:27:57" classname="rby1_motion_planning.Validator" />
+  </testsuite>
+</testsuites>

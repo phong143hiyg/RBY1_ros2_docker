@@ -1,0 +1,13 @@
+# Illustrative fake limits, not robot-specific manufacturer acceleration limits.
+velocity_scaling: 0.1
+acceleration_scaling: 0.1
+validation_resolution: 0.02
+cartesian_step: 0.005
+approach_distance: 0.10
+lift_distance: 0.15
+retreat_distance: 0.10
+approach_direction: [0.0, 0.0, -1.0]
+lift_direction: [0.0, 0.0, 1.0]
+retreat_direction: [0.0, 0.0, 1.0]
+plan_ttl_s: 120.0
+state_timeout_s: 5.0

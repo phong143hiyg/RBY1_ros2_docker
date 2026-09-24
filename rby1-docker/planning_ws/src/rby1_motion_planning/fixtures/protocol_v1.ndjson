@@ -1,0 +1,9 @@
+{"v":1,"id":"cap-1","method":"capabilities"}
+{"v":1,"id":"scene-1","method":"get_scene"}
+{"v":1,"id":"reset-1","method":"reset_scene"}
+{"v":1,"id":"load-1","method":"load_scene","params":{"scene":{"frame":"base","objects":[]}}}
+{"v":1,"id":"pose-1","method":"plan_to_pose","params":{"frame":"base","pose":{"position":[0.4,-0.3,0.9],"orientation":[0,0,0,1]},"deadline_s":30}}
+{"v":1,"id":"pick-1","method":"plan_pick_place","params":{"deadline_s":30}}
+{"v":1,"id":"preview-1","method":"preview","params":{"plan_id":"plan-1"}}
+{"v":1,"id":"status-1","method":"get_task_status","params":{"task_id":"pose-1"}}
+{"v":1,"id":"cancel-1","method":"cancel","params":{"task_id":"pose-1"}}

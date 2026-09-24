@@ -1,0 +1,30 @@
+# Planning/preview only, using the audited vendor image without starting its driver.
+FROM local/rby1-ros2:humble
+SHELL ["/bin/bash", "-c"]
+ENV DEBIAN_FRONTEND=noninteractive PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+RUN test "$(git -C /opt/rby1_ros2_ws/src/rby1-ros2 rev-parse HEAD)" = 2493c8dd62dc835d5f3142d9d49ca7a8f8959f1b
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pytest python3-yaml libyaml-cpp-dev nlohmann-json3-dev libfmt-dev \
+    ros-humble-py-binding-tools ros-humble-launch-testing-ament-cmake \
+    && rm -rf /var/lib/apt/lists/*
+ARG MTC_REF=756634951326ae17ae099882f7110c6f1d0a98c0
+RUN mkdir -p /opt/mtc_ws/src/moveit_task_constructor && \
+    cd /opt/mtc_ws/src/moveit_task_constructor && git init && \
+    git remote add origin https://github.com/moveit/moveit_task_constructor.git && \
+    git fetch --depth 1 origin "${MTC_REF}" && git checkout --detach FETCH_HEAD && \
+    git submodule update --init --recursive --depth 1
+RUN source /opt/ros/humble/setup.bash && cd /opt/mtc_ws && \
+    CMAKE_BUILD_PARALLEL_LEVEL=2 colcon build --executor sequential \
+    --packages-up-to moveit_task_constructor_core moveit_task_constructor_visualization \
+    --cmake-args -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
+COPY planning_ws/src /opt/planning_ws/src
+COPY planning_protocol /opt/planning_protocol
+RUN source /opt/ros/humble/setup.bash && source /opt/rby1_ros2_ws/install/setup.bash && \
+    source /opt/mtc_ws/install/setup.bash && cd /opt/planning_ws && \
+    CMAKE_BUILD_PARALLEL_LEVEL=2 colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+COPY planning_entrypoint.sh /planning_entrypoint.sh
+RUN chmod +x /planning_entrypoint.sh
+ENV ROS_DOMAIN_ID=83 ROS_LOCALHOST_ONLY=1
+WORKDIR /opt/planning_ws
+ENTRYPOINT ["/planning_entrypoint.sh"]
+CMD ["ros2", "launch", "rby1_motion_planning", "planning_test.launch.py", "model:=m", "moveit_package:=rby1_moveit_m_1_2", "contract_bind:=0.0.0.0"]

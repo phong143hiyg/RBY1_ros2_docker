@@ -1,0 +1,20 @@
+{
+  "date": "2026-09-21",
+  "scope": "Qt contract v1 adapter static and simulated-backend verification; not a new MoveIt run",
+  "qt_contract_sources": {
+    "protocol-v1.md_sha256": "9b89c1b1f8a26068228f48ce4c5ea925a646496cdf9f8496b373861eb6dd829d",
+    "contract-v1.json_sha256": "439e435361e1fb8ef649c143b77b21c00a2ba66b2385b2e5c35a25b942e52b93",
+    "byte_identical_to_qt_checkout": true
+  },
+  "host_checks": {
+    "python_unittest": "7 passed, 0 failed",
+    "python_py_compile": "passed",
+    "package_xml_parse": "passed",
+    "git_diff_check": "passed"
+  },
+  "new_colcon_build": "NOT_RUN: colcon command unavailable on host",
+  "new_docker_build_or_fake_launch": "NOT_RUN: Docker WSL integration unavailable; docker.exe failed with UtilBindVsockAnyPort",
+  "new_moveit_planning_or_preview": "NOT_RUN",
+  "previous_moveit_report": "verification.json records Docker/MoveIt checks on 2026-09-16 before this adapter and scene update; it is not evidence for current source",
+  "robot_execution": false
+}

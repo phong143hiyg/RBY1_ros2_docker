@@ -1,0 +1,13 @@
+planning_plugin: ompl_interface/OMPLPlanner
+# Geometry-preserving path: retime explicitly with IPTP after planning.
+request_adapters: >-
+  default_planner_request_adapters/ResolveConstraintFrames
+  default_planner_request_adapters/FixWorkspaceBounds
+maximum_waypoint_distance: 0.01
+planner_configs:
+  RRTConnectkConfigDefault:
+    type: geometric::RRTConnect
+    range: 0.1
+right_arm:
+  planner_configs: [RRTConnectkConfigDefault]
+  longest_valid_segment_fraction: 0.0005

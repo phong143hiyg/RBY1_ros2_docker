@@ -1,0 +1,616 @@
+{
+  "protocol_version": 1,
+  "notice": "MOCK fixture coordinates and metadata are illustrative and unverified; not a MoveIt result.",
+  "capabilities": {
+    "backend_mode": "mock",
+    "model": "Illustrative RBY1 contract ONLY",
+    "model_version": "v1 (no kinematics)",
+    "robot_model_id": "mock:illustrative-v1:contract-v1-no-urdf-srdf",
+    "planning_frame": "mock_world",
+    "groups": [
+      "right_arm"
+    ],
+    "tcp_mappings": [
+      {
+        "group": "right_arm",
+        "tcp_frame": "mock_tcp",
+        "link": "mock_tool_link"
+      }
+    ],
+    "supported_commands": [
+      "get_capabilities",
+      "load_test_scene",
+      "get_scene",
+      "plan_to_pose",
+      "plan_pick_place",
+      "preview_plan",
+      "get_task_status",
+      "cancel_planning"
+    ],
+    "scenarios": [
+      "pick_place_obstacles",
+      "baseline",
+      "goal_in_collision",
+      "unreachable_goal",
+      "start_in_collision",
+      "attached_object_clearance"
+    ],
+    "execution_enabled": false,
+    "max_frame_bytes": 1048576,
+    "suggested_planning_timeout_s": 5,
+    "max_planning_timeout_s": 60,
+    "plan_ttl_s": 120,
+    "task_status_ttl_s": 300
+  },
+  "scene": {
+    "schema_version": 1,
+    "units": {
+      "length": "m",
+      "angle": "rad",
+      "quaternion": "xyzw"
+    },
+    "scenario_id": "pick_place_obstacles",
+    "scene_revision": "mock-scene-1",
+    "robot_model_id": "mock:illustrative-v1:contract-v1-no-urdf-srdf",
+    "frame_id": "mock_world",
+    "group": "right_arm",
+    "tcp_frame": "mock_tcp",
+    "pick_tcp_pose": {
+      "frame_id": "mock_world",
+      "position": [
+        0.55,
+        -0.25,
+        0.95
+      ],
+      "orientation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "place_object_pose": {
+      "frame_id": "mock_world",
+      "position": [
+        0.55,
+        0.25,
+        0.82
+      ],
+      "orientation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "defaults": {
+      "approach_distance_m": 0.08,
+      "lift_distance_m": 0.12,
+      "retreat_distance_m": 0.08,
+      "planning_timeout_s": 5,
+      "velocity_scale": 0.2,
+      "acceleration_scale": 0.2
+    },
+    "cartesian_directions": {
+      "approach": {
+        "frame_id": "mock_world",
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      "lift": {
+        "frame_id": "mock_world",
+        "vector": [
+          0,
+          0,
+          1
+        ]
+      },
+      "lower": {
+        "frame_id": "mock_world",
+        "vector": [
+          0,
+          0,
+          -1
+        ]
+      },
+      "retreat": {
+        "frame_id": "mock_world",
+        "vector": [
+          -1,
+          0,
+          0
+        ]
+      }
+    },
+    "objects": [
+      {
+        "id": "floor",
+        "role": "support",
+        "geometry": "box",
+        "dimensions_m": [
+          3,
+          3,
+          0.02
+        ],
+        "pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0,
+            0,
+            -0.1
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      {
+        "id": "table",
+        "role": "support",
+        "geometry": "box",
+        "dimensions_m": [
+          1.2,
+          0.8,
+          0.08
+        ],
+        "pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.65,
+            0,
+            0.7
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      {
+        "id": "obstacle_box",
+        "role": "obstacle",
+        "geometry": "box",
+        "dimensions_m": [
+          0.1,
+          0.15,
+          0.2
+        ],
+        "pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.6,
+            0,
+            0.84
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      {
+        "id": "obstacle_column",
+        "role": "obstacle",
+        "geometry": "cylinder",
+        "dimensions_m": [
+          0.25,
+          0.05
+        ],
+        "pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.7,
+            0.1,
+            0.86
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      {
+        "id": "target_object",
+        "role": "target",
+        "geometry": "cylinder",
+        "dimensions_m": [
+          0.1,
+          0.025
+        ],
+        "pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.55,
+            -0.25,
+            0.82
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      }
+    ],
+    "markers": [
+      {
+        "label": "pick_tcp",
+        "pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.55,
+            -0.25,
+            0.95
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "simulated": true
+      },
+      {
+        "label": "place_object",
+        "pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.55,
+            0.25,
+            0.82
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "simulated": true
+      },
+      {
+        "label": "place_tcp",
+        "pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.55,
+            0.25,
+            0.95
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "simulated": true
+      },
+      {
+        "label": "pre_grasp",
+        "pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.47,
+            -0.25,
+            0.95
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "simulated": true
+      },
+      {
+        "label": "lift",
+        "pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.55,
+            -0.25,
+            1.07
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "simulated": true
+      },
+      {
+        "label": "pre_place",
+        "pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.55,
+            0.25,
+            1.07
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "simulated": true
+      },
+      {
+        "label": "retreat",
+        "pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.47,
+            0.25,
+            0.95
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "simulated": true
+      }
+    ]
+  },
+  "result": {
+    "plan_id": "mock-plan-example",
+    "scene_revision": "mock-scene-1",
+    "robot_model_id": "mock:illustrative-v1:contract-v1-no-urdf-srdf",
+    "group": "right_arm",
+    "frame": "mock_world",
+    "tcp_frame": "mock_tcp",
+    "planning_time_s": 0.3,
+    "duration_s": 2.5,
+    "waypoint_count": 12,
+    "joint_names": [
+      "mock_joint_1"
+    ],
+    "stages": [
+      "open",
+      "connect",
+      "approach",
+      "attach",
+      "lift",
+      "transfer",
+      "lower",
+      "detach",
+      "retreat"
+    ],
+    "validation": {
+      "simulated": true,
+      "joint_limits": "not_checked",
+      "collision": "not_checked",
+      "timing": "not_checked",
+      "message": "Protocol simulation only; no IK, collision checking, retiming or MoveIt trajectory."
+    }
+  },
+  "requests": {
+    "get_capabilities": {
+      "protocol_version": 1,
+      "type": "request",
+      "request_id": "fixture-1",
+      "command": "get_capabilities",
+      "payload": {}
+    },
+    "load_test_scene": {
+      "protocol_version": 1,
+      "type": "request",
+      "request_id": "fixture-1",
+      "command": "load_test_scene",
+      "payload": {
+        "scenario_id": "pick_place_obstacles"
+      }
+    },
+    "get_scene": {
+      "protocol_version": 1,
+      "type": "request",
+      "request_id": "fixture-1",
+      "command": "get_scene",
+      "payload": {}
+    },
+    "plan_pick_place": {
+      "protocol_version": 1,
+      "type": "request",
+      "request_id": "fixture-1",
+      "command": "plan_pick_place",
+      "payload": {
+        "scene_revision": "mock-scene-1",
+        "group": "right_arm",
+        "tcp_frame": "mock_tcp",
+        "object_id": "target_object",
+        "pick_tcp_pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.55,
+            -0.25,
+            0.95
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "place_object_pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.55,
+            0.25,
+            0.82
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "approach_distance_m": 0.08,
+        "lift_distance_m": 0.12,
+        "retreat_distance_m": 0.08,
+        "planning_timeout_s": 5,
+        "velocity_scale": 0.2,
+        "acceleration_scale": 0.2
+      }
+    },
+    "plan_to_pose": {
+      "protocol_version": 1,
+      "type": "request",
+      "request_id": "fixture-1",
+      "command": "plan_to_pose",
+      "payload": {
+        "scene_revision": "mock-scene-1",
+        "group": "right_arm",
+        "tcp_frame": "mock_tcp",
+        "goal_tcp_pose": {
+          "frame_id": "mock_world",
+          "position": [
+            0.55,
+            -0.25,
+            0.95
+          ],
+          "orientation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "planning_timeout_s": 5,
+        "velocity_scale": 0.2,
+        "acceleration_scale": 0.2
+      }
+    },
+    "cancel_planning": {
+      "protocol_version": 1,
+      "type": "request",
+      "request_id": "fixture-1",
+      "command": "cancel_planning",
+      "payload": {
+        "target_request_id": "fixture-1"
+      }
+    },
+    "get_task_status": {
+      "protocol_version": 1,
+      "type": "request",
+      "request_id": "fixture-1",
+      "command": "get_task_status",
+      "payload": {
+        "target_request_id": "fixture-1"
+      }
+    },
+    "preview_plan": {
+      "protocol_version": 1,
+      "type": "request",
+      "request_id": "fixture-1",
+      "command": "preview_plan",
+      "payload": {
+        "plan_id": "mock-plan-example"
+      }
+    }
+  },
+  "examples": {
+    "ack": {
+      "protocol_version": 1,
+      "type": "response",
+      "request_id": "fixture-1",
+      "command": "plan_pick_place",
+      "payload": {},
+      "ok": true
+    },
+    "progress": {
+      "protocol_version": 1,
+      "type": "event",
+      "request_id": "fixture-1",
+      "command": "plan_pick_place",
+      "payload": {
+        "progress": 0.5
+      },
+      "event_seq": 1,
+      "status": "planning",
+      "stage": "approach"
+    },
+    "terminal": {
+      "protocol_version": 1,
+      "type": "event",
+      "request_id": "fixture-1",
+      "command": "plan_pick_place",
+      "payload": {
+        "plan_id": "mock-plan-example",
+        "scene_revision": "mock-scene-1",
+        "robot_model_id": "mock:illustrative-v1:contract-v1-no-urdf-srdf",
+        "group": "right_arm",
+        "frame": "mock_world",
+        "tcp_frame": "mock_tcp",
+        "planning_time_s": 0.3,
+        "duration_s": 2.5,
+        "waypoint_count": 12,
+        "joint_names": [
+          "mock_joint_1"
+        ],
+        "stages": [
+          "open",
+          "connect",
+          "approach",
+          "attach",
+          "lift",
+          "transfer",
+          "lower",
+          "detach",
+          "retreat"
+        ],
+        "validation": {
+          "simulated": true,
+          "joint_limits": "not_checked",
+          "collision": "not_checked",
+          "timing": "not_checked",
+          "message": "Protocol simulation only; no IK, collision checking, retiming or MoveIt trajectory."
+        }
+      },
+      "event_seq": 2,
+      "status": "succeeded",
+      "stage": "complete"
+    },
+    "failure": {
+      "protocol_version": 1,
+      "type": "event",
+      "request_id": "fixture-1",
+      "command": "plan_pick_place",
+      "payload": {},
+      "event_seq": 2,
+      "status": "failed",
+      "stage": "transfer",
+      "error": {
+        "code": "PLANNING_FAILED",
+        "message": "Simulated failure",
+        "stage": "transfer",
+        "details": {
+          "simulated": true
+        }
+      }
+    }
+  }
+}

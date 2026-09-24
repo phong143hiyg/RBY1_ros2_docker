@@ -1,0 +1,253 @@
+{
+  "generated_utc": "2026-09-16T18:32:33.596859+00:00",
+  "result": "PASS_FOR_VERIFIED_PLANNING_PREVIEW_SCOPE_WITH_EXPLICIT_LIMITATIONS",
+  "execution_enabled": false,
+  "physical_model_selection": "unknown; M v1.2 used for fake demonstration only",
+  "package_source_sha256": "98b1f2fc0c54790ce39dadb36c7bbf936c18dfcf9a9fa38cf0072d448b93c17b",
+  "docker_image": {
+    "id": "sha256:bbdbf4b4bf4eec27d602159088585a971bd30e8b438c836589730517b62fd955",
+    "created": "2026-09-16T18:29:40.322765811Z",
+    "size_bytes": 2158164913
+  },
+  "build": {
+    "workspace": "colcon build success; MTC source compiled",
+    "image": "Docker build success; MTC core and RViz plugin built"
+  },
+  "colcon_test": {
+    "reported_tests_including_ctest_aggregates": 18,
+    "errors": 0,
+    "failures": 0,
+    "junit": {
+      "protocol_core.xunit.xml": {
+        "tests": 8,
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0
+      },
+      "validator_test.gtest.xml": {
+        "tests": 5,
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0
+      },
+      "test_test_planning_launch.py.xunit.xml": {
+        "tests": 2,
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0
+      }
+    }
+  },
+  "launch_testing": {
+    "artifact": "launch_testing/scenarios.json",
+    "counts": {
+      "PASS": 16,
+      "SKIP": 2
+    },
+    "skipped": [
+      {
+        "name": "rby1_object_pose_after_detach",
+        "status": "SKIP",
+        "reason": "RBY1 gripper model invalid: ['MIMIC_BOUNDS_CONFLICT:gripper_finger_l2_joint', 'MIMIC_BOUNDS_CONFLICT:gripper_finger_r2_joint']. Generic geometry checks run in C++ validator tests.",
+        "elapsed_s": 0
+      },
+      {
+        "name": "rby1_mtc_stage_sequence",
+        "status": "SKIP",
+        "reason": "RBY1 gripper model invalid: ['MIMIC_BOUNDS_CONFLICT:gripper_finger_l2_joint', 'MIMIC_BOUNDS_CONFLICT:gripper_finger_r2_joint']. Generic geometry checks run in C++ validator tests.",
+        "elapsed_s": 0
+      }
+    ],
+    "baseline": {
+      "success_rate": 1.0,
+      "repetitions": 5,
+      "planning_time_mean_s": 0.0459566934
+    },
+    "obstacle": {
+      "bare_fraction": 1.0,
+      "blocked_fraction": 0.2033898305084746,
+      "collision_rejections": 29,
+      "midpoint_contacts": [
+        [
+          "gripper_right",
+          "straight_path_blocker"
+        ],
+        [
+          "link_right_arm_6",
+          "straight_path_blocker"
+        ]
+      ],
+      "success_rate": 1.0,
+      "planning_time_mean_s": 0.2849642888,
+      "obstacle": {
+        "id": "straight_path_blocker",
+        "type": "box",
+        "dimensions": [
+          0.04,
+          0.04,
+          0.04
+        ],
+        "pose": {
+          "position": [
+            0.3059383845585806,
+            -0.46368426704831855,
+            0.9464939395262026
+          ],
+          "orientation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    "attached_payload": {
+      "bare_fraction": 1.0,
+      "attached_fraction": 0.1016949152542373,
+      "attached_collision_rejections": 86,
+      "midpoint_contacts": [
+        [
+          "diagnostic_payload",
+          "payload_wall"
+        ]
+      ],
+      "live_scene_unchanged": true,
+      "grasp_claim": false
+    }
+  },
+  "host_tcp_to_final_docker_image": {
+    "artifact": "scenarios.json",
+    "counts": {
+      "PASS": 16,
+      "SKIP": 2
+    },
+    "skipped": [
+      {
+        "name": "rby1_object_pose_after_detach",
+        "status": "SKIP",
+        "reason": "RBY1 gripper model invalid: ['MIMIC_BOUNDS_CONFLICT:gripper_finger_l2_joint', 'MIMIC_BOUNDS_CONFLICT:gripper_finger_r2_joint']. Generic geometry checks run in C++ validator tests.",
+        "elapsed_s": 0
+      },
+      {
+        "name": "rby1_mtc_stage_sequence",
+        "status": "SKIP",
+        "reason": "RBY1 gripper model invalid: ['MIMIC_BOUNDS_CONFLICT:gripper_finger_l2_joint', 'MIMIC_BOUNDS_CONFLICT:gripper_finger_r2_joint']. Generic geometry checks run in C++ validator tests.",
+        "elapsed_s": 0
+      }
+    ],
+    "baseline": {
+      "success_rate": 1.0,
+      "repetitions": 5,
+      "planning_time_mean_s": 0.0662332684
+    },
+    "obstacle": {
+      "bare_fraction": 1.0,
+      "blocked_fraction": 0.2033898305084746,
+      "collision_rejections": 31,
+      "midpoint_contacts": [
+        [
+          "gripper_right",
+          "straight_path_blocker"
+        ],
+        [
+          "link_right_arm_6",
+          "straight_path_blocker"
+        ]
+      ],
+      "success_rate": 1.0,
+      "planning_time_mean_s": 0.264796667,
+      "obstacle": {
+        "id": "straight_path_blocker",
+        "type": "box",
+        "dimensions": [
+          0.04,
+          0.04,
+          0.04
+        ],
+        "pose": {
+          "position": [
+            0.3059383845585806,
+            -0.46368426704831855,
+            0.9464939395262026
+          ],
+          "orientation": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    "attached_payload": {
+      "bare_fraction": 1.0,
+      "attached_fraction": 0.1016949152542373,
+      "attached_collision_rejections": 81,
+      "midpoint_contacts": [
+        [
+          "diagnostic_payload",
+          "payload_wall"
+        ]
+      ],
+      "live_scene_unchanged": true,
+      "grasp_claim": false
+    }
+  },
+  "hardware_audit": {
+    "GenericSystem_active": true,
+    "joint_state_publishers": 1,
+    "active_controllers": [
+      "joint_state_broadcaster"
+    ],
+    "command_interfaces_claimed": false,
+    "artifacts": [
+      "hardware_components.txt",
+      "controllers.txt",
+      "hardware_interfaces.txt",
+      "joint_states_owners.txt"
+    ]
+  },
+  "shutdown": {
+    "status": "PASS",
+    "artifact": "docker_launch.log",
+    "clean_exit_assertions": "launch_testing rejects segmentation-fault exit codes",
+    "warning": "MoveIt 2.5.9 class_loader teardown warning remains; audited process-local capability preload fixes tested shutdown",
+    "container": {
+      "exit_code": 0,
+      "oom_killed": false,
+      "status": "exited"
+    }
+  },
+  "limitations": [
+    {
+      "check": "RBY1 valid grasp / full MTC pick-place / RBY1 detach pose",
+      "status": "SKIP",
+      "reason": "Vendor gripper mimic multiplier +1 conflicts with follower bounds; capability false and explicit error. Generic C++ detach geometry and virtual RBY1 attached collision tests passed, without a grasp claim."
+    },
+    {
+      "check": "RViz GUI / screenshots",
+      "status": "NOT_RUN",
+      "reason": "No GUI available. RViz config and MTC visualization plugin built."
+    },
+    {
+      "check": "Common protocol specification compatibility",
+      "status": "UNVERIFIED",
+      "reason": "Referenced prompts-test-moveit2-rby1.md and shared protocol fixture not supplied/found; provisional-v1 tested."
+    },
+    {
+      "check": "Continuous collision guarantee",
+      "status": "NOT_CLAIMED",
+      "reason": "Trajectory checked at waypoints and interpolation, maximum variable delta .02 rad/metres; Cartesian diagnostic step .005 metres."
+    }
+  ],
+  "environment": "environment.json",
+  "model_and_overlays": "launch_audit.json",
+  "planning_statistics": "planning_trials.csv",
+  "protocol_messages": "protocol_trace.ndjson",
+  "calibration_history": "history/ records prior failed calibrations, not final PASS evidence",
+  "existing_bridge_and_vendor_files": "No edits to existing Bridge or vendor source; existing container workload left running",
+  "docker_package_source_sha256": "98b1f2fc0c54790ce39dadb36c7bbf936c18dfcf9a9fa38cf0072d448b93c17b",
+  "docker_source_matches_tested_workspace": true,
+  "packaged_cli": "capabilities.json: ros2 run CLI succeeded inside final image"
+}
