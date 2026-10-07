@@ -1,3 +1,7 @@
 ARG RBY1_SIM_TAG=0.10.6-m_v1.2
+ARG RBY1_SIM_DIGEST=sha256:1a462a3e11299d773c089c0c691a7f31b011a0408a8d503a0529b085fc0c9443
 
-FROM rainbowroboticsofficial/rby1-sim:${RBY1_SIM_TAG}
+FROM rainbowroboticsofficial/rby1-sim:${RBY1_SIM_TAG}@${RBY1_SIM_DIGEST}
+
+# The official image runs app_main and serves the RBY1 SDK gRPC API on 50051.
+# Compose uses host networking so the host Qt process connects to localhost:50051.

@@ -1,0 +1,74 @@
+FROM ubuntu:22.04
+
+SHELL ["/bin/bash", "-c"]
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV RBY1_SDK_SOURCE=/opt/rby1-sdk
+ENV RBY1_SDK_ROOT=/opt/rby1-sdk-install
+ENV CMAKE_PREFIX_PATH=/opt/rby1-sdk-install
+ENV LD_LIBRARY_PATH=/opt/rby1-sdk-install/lib
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    cmake \
+    git \
+    ninja-build \
+    pkg-config \
+    python3 \
+    python3-pip \
+    qt6-base-dev \
+    qt6-base-dev-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG CONAN_VERSION=2.20.1
+RUN python3 -m pip install --no-cache-dir "conan==${CONAN_VERSION}"
+
+ARG RBY1_SDK_REF=v0.10.0
+ARG RBY1_SDK_COMMIT=9af8a734b7bef0167545e3d9f0d559276a5b64ee
+
+RUN git clone \
+      --branch "${RBY1_SDK_REF}" \
+      --depth 1 \
+      --recurse-submodules \
+      --shallow-submodules \
+      https://github.com/RainbowRobotics/rby1-sdk.git \
+      "${RBY1_SDK_SOURCE}" \
+    && test "$(git -C "${RBY1_SDK_SOURCE}" rev-parse HEAD)" = "${RBY1_SDK_COMMIT}"
+
+WORKDIR ${RBY1_SDK_SOURCE}
+
+RUN conan profile detect --force \
+    && conan install . \
+      -s build_type=Release \
+      -b missing \
+      -of build \
+    && cmake \
+      -S . \
+      -B build \
+      -G Ninja \
+      -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake \
+      -DCMAKE_POLICY_DEFAULT_CMP0091=NEW \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_INSTALL_PREFIX="${RBY1_SDK_ROOT}" \
+      -DBUILD_EXAMPLES=OFF \
+      -DBUILD_PYTHON_BINDINGS=OFF \
+    && cmake --build build --parallel \
+    && cmake --install build
+
+# Build a read-only connectivity probe from a clean, separate CMake project.
+COPY sdk_smoke /opt/rby1-sdk-smoke-src
+RUN cmake \
+      -S /opt/rby1-sdk-smoke-src \
+      -B /opt/rby1-sdk-smoke-build \
+      -G Ninja \
+      -DCMAKE_TOOLCHAIN_FILE=/opt/rby1-sdk/build/conan_toolchain.cmake \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_PREFIX_PATH="${RBY1_SDK_ROOT}" \
+      -Drby1-sdk_DIR="${RBY1_SDK_ROOT}/lib/cmake/rby1-sdk" \
+      -DCMAKE_INSTALL_PREFIX=/usr/local \
+    && cmake --build /opt/rby1-sdk-smoke-build --parallel \
+    && cmake --install /opt/rby1-sdk-smoke-build
+
+WORKDIR /workspace
+CMD ["bash"]

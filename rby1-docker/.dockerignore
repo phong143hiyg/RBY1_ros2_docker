@@ -14,11 +14,6 @@ __pycache__
 *.pyo
 *.pyd
 
-# ROS 2 workspace được tạo trên host
-rby1_ros2_ws/build
-rby1_ros2_ws/install
-rby1_ros2_ws/log
-
 # IDE
 .vscode
 .idea
@@ -31,5 +26,3 @@ Thumbs.db
 *.zip
 *.tar
 *.tar.gz
-# New planning test artifacts stay in the repository, not in the runtime image.
-planning_ws/src/rby1_motion_planning/reports/
